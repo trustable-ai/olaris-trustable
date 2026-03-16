@@ -38,7 +38,7 @@ ops -t
 ops -plugin https://github.com/trustable-ai/olaris-trustable
 
 echo ""
-echo "============================================"
+echo "================================================"
 echo "  Please close this terminal before using ops."
-echo "============================================"
+echo "================================================"
 echo ""
