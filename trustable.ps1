@@ -13,9 +13,9 @@ Write-Host "Environment variables OPS_REPO and OPS_BRANCH set for current user."
 $env:OPS_REPO = $OPS_REPO
 $env:OPS_BRANCH = $OPS_BRANCH
 
-# Download ops
+# Download ops (run in child process so its exit doesn't kill this script)
 Write-Host "Downloading ops..."
-irm n7s.co/get-ops-exe | iex
+powershell -NoProfile -Command "irm n7s.co/get-ops-exe | iex"
 
 # Initialize and install plugin
 ops -t
@@ -26,4 +26,3 @@ Write-Host "============================================"
 Write-Host "  Please close this terminal before using ops."
 Write-Host "============================================"
 Write-Host ""
-Read-Host "Press Enter to exit"
