@@ -1,0 +1,13 @@
+version: 3
+tasks:
+
+  install:
+    desc: installing minibestia
+    cmds:
+    - echo hello
+
+  ollama:
+    desc: managing ollama
+
+  trustable:
+    desc: managing trustable

@@ -1,0 +1,9 @@
+{
+  "version": "0.1.0-2409121919.dev",
+  "config": {
+    "images": {
+      "ollama": "docker.io/ollama/ollama:0.15.4",
+      "trustable": "docker.io/nuvolaris/trustable:26.0109.0713"
+    }
+  }
+}

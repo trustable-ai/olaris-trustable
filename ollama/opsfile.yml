@@ -1,0 +1,105 @@
+version: '3'
+
+vars:
+  USE_GPU: "--gpus all"
+
+env:
+  BESTIA_IMAGES_OLLAMA:
+    sh: echo $MINIBESTIA_IMAGES_OLLAMA
+
+tasks:
+
+  prereq:
+    silent: true
+    cmds:
+    - command -v docker >/dev/null 2>&1 || die "docker is required."
+
+  run:
+    silent: true
+    desc: run/reconfigure ollama container from current config
+    cmds:
+    - task: prereq
+    - |
+      IMAGE="${BESTIA_IMAGES_OLLAMA:-docker.io/ollama/ollama:0.15.4}"
+
+      USE_GPU=""
+      if docker info 2>/dev/null | grep -qi nvidia
+      then
+        USE_GPU="--gpus all"
+      else
+        echo "no gpu found - very slow llm only"
+      fi
+
+      docker rm -f ollama >/dev/null 2>&1 || true
+
+      docker run -d \
+        --name ollama \
+        --restart unless-stopped \
+        $USE_GPU \
+        -p 11434:11434 \
+        -v $HOME/.ollama:/root/.ollama \
+        -e OLLAMA_KEEP_ALIVE=20m \
+        -e OLLAMA_USE_CUDA=1 \
+        $IMAGE >/dev/null
+
+      docker network create nuvolaris-ollama >/dev/null 2>&1 || true
+      docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
+      docker network connect nuvolaris-ollama nuvolaris-control-plane >/dev/null 2>&1 || true
+
+  start:
+    desc: starting ollama
+    silent: true
+    cmds:
+    - task: run
+    - task: prepare
+
+  stop:
+    desc: stopping ollama
+    silent: true
+    ignore_errors: true
+    cmds:
+    - |
+      if docker ps -a | rg ollama
+      then
+          docker rm -f ollama-auth-proxy >/dev/null 2>&1 || true
+          docker network disconnect nuvolaris-ollama ollama >/dev/null 2>&1 || true
+          docker rm -f ollama
+          docker network disconnect nuvolaris-ollama nuvolaris-control-plane >/dev/null 2>&1 || true
+          docker network rm nuvolaris-ollama >/dev/null 2>&1 || true
+          echo Ollama stopped
+      else
+          docker rm -f ollama-auth-proxy >/dev/null 2>&1 || true
+          echo Ollama is not running
+      fi
+
+  enter:
+    desc: entering ollama
+    silent: true
+    cmds:
+    - docker exec -ti ollama bash
+
+
+  models:
+    desc: current model list
+    silent: true
+    cmds:
+    - cat model.lst
+
+
+  prepare:
+    desc: prepare
+    silent: false
+    cmds:
+    - docker ps --format '{{.Names}}' | rg ollama || die "Ollama not running"
+    - |
+      cat model.lst | while read model size
+      do  echo $model
+          docker exec  ollama ollama pull $model
+      done
+
+
+  signin:
+    desc: signin
+    silent: true
+    cmds:
+    - docker exec -ti ollama ollama signin
