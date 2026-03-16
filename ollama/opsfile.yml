@@ -23,7 +23,7 @@ tasks:
       IMAGE="${BESTIA_IMAGES_OLLAMA:-docker.io/ollama/ollama:0.15.4}"
 
       USE_GPU=""
-      if docker info 2>/dev/null | grep -qi nvidia
+      if docker info 2>/dev/null | rg -qi nvidia
       then
         USE_GPU="--gpus all"
       else

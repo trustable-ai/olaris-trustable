@@ -11,3 +11,10 @@ tasks:
 
   trustable:
     desc: managing trustable
+
+
+  update:
+    desc: updating plugin
+    silent: true
+    cmds:
+    - ops -plugin https://github.com/trustable-ai/olaris-trustable
