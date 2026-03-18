@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: trustable-svc
+spec:
+  selector:
+    app: trustable
+  ports:
+    - name: web
+      port: 8910
+      targetPort: 8910
+    - name: opencode
+      port: 4096
+      targetPort: 4096
+    - name: vite
+      port: 5173
+      targetPort: 5173
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trustable-ing
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: trustable.$DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trustable-svc
+                port:
+                  number: 8910
+  tls:
+    - hosts:
+        - trustable.$DOMAIN
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opencode-ing
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: opencode.$DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trustable-svc
+                port:
+                  number: 4096
+  tls:
+    - hosts:
+        - opencode.$DOMAIN
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vite-ing
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: vite.$DOMAIN
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trustable-svc
+                port:
+                  number: 5173
+  tls:
+    - hosts:
+        - vite.$DOMAIN

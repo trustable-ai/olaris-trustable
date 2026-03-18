@@ -51,7 +51,7 @@ tasks:
     silent: true
     cmds:
     - task: run
-    - task: prepare
+    - task: preload
 
   stop:
     desc: stopping ollama
@@ -78,21 +78,13 @@ tasks:
     cmds:
     - docker exec -ti ollama bash
 
-
-  models:
-    desc: current model list
-    silent: true
-    cmds:
-    - cat model.lst
-
-
-  prepare:
-    desc: prepare
+  preload:
+    desc: preload
     silent: false
     cmds:
     - docker ps --format '{{.Names}}' | rg ollama || die "Ollama not running"
     - |
-      cat model.lst | while read model size
+      cat ../model.lst | while read model
       do  echo $model
           docker exec  ollama ollama pull $model
       done

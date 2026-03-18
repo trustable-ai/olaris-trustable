@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: ssh-devcontainer
+  name: trustable
   namespace: nuvolaris
   labels:
-    app: ssh-devcontainer
+    app: trustable
 spec:
-  serviceName: ssh-devcontainer
+  serviceName: trustable
   replicas: 1
   selector:
     matchLabels:
-      app: ssh-devcontainer
+      app: trustable
   template:
     metadata:
       labels:
-        app: ssh-devcontainer
+        app: trustable
     spec:
-      hostname: ssh-devcontainer
+      hostname: trustable
       volumes:
       - name: workspace
         hostPath:
@@ -36,14 +36,8 @@ spec:
           runAsGroup: $USERID
         volumeMounts:
         - name: workspace
-          mountPath: /home/workspace
+          mountPath: /home/node/workspace
         env:
-        - name: OPS_USER
-          value: $OPS_USER
-        - name: OPS_PASSWORD
-          value: $OPS_PASSWORD
-        - name: OPS_APIHOST
-          value: $OPS_APIHOST
         - name: DEBIAN_FRONTEND
           value: noninteractive
         - name: SSHKEY
@@ -94,14 +88,14 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ssh-devcontainer
+  name: trustable-ssh
   namespace: nuvolaris
   labels:
-    app: ssh-devcontainer
+    app: trustable
 spec:
   type: NodePort
   selector:
-    app: ssh-devcontainer
+    app: trustable
   ports:
   - port: 2222
     targetPort: 2222
