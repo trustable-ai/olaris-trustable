@@ -2,9 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: trustable
-  namespace: nuvolaris
-  labels:
-    app: trustable
 spec:
   serviceName: trustable
   replicas: 1
@@ -25,18 +22,28 @@ spec:
         configMap:
           name: nginx-proxy-config
       containers:
-      - name: devcontainer
+      - name: trustable
         image: $IMAGE
+        #command: ["tail", "-f", "/dev/null"]
         ports:
         - containerPort: 2222
           name: ssh
+          protocol: TCP
+        - containerPort: 8910
+          name: web
+          protocol: TCP
+        - containerPort: 4096
+          name: opencode
+          protocol: TCP
+        - containerPort: 5173
+          name: vite
           protocol: TCP
         securityContext:
           runAsUser: $USERID
           runAsGroup: $USERID
         volumeMounts:
         - name: workspace
-          mountPath: /home/node/workspace
+          mountPath: /home/node/data
         env:
         - name: DEBIAN_FRONTEND
           value: noninteractive
@@ -45,6 +52,11 @@ spec:
             secretKeyRef:
               name: ssh-secret
               key: authorized_keys
+        - name: B64KUBECONFIG
+          valueFrom:
+            secretKeyRef:
+              name: kube-secret
+              key: kubeconfig
       - name: reverse-proxy
         image: nginx:alpine
         ports:
@@ -59,37 +71,9 @@ spec:
           readOnly: true
 ---
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nginx-proxy-config
-  namespace: nuvolaris
-data:
-  nginx.conf: |
-    events {
-        worker_connections 1024;
-    }
-    http {
-        client_max_body_size 1g;
-
-        server {
-            listen 80;
-            server_name miniops.me *.miniops.me;
-
-            location / {
-                proxy_pass http://ingress-nginx-controller.ingress-nginx.svc.cluster.local;
-                proxy_set_header Host $$host;
-                proxy_set_header X-Real-IP $$remote_addr;
-                proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto http;
-            }
-        }
-    }
----
-apiVersion: v1
 kind: Service
 metadata:
   name: trustable-ssh
-  namespace: nuvolaris
   labels:
     app: trustable
 spec:
@@ -102,3 +86,22 @@ spec:
     nodePort: 30222
     protocol: TCP
     name: ssh
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trustable-svc
+spec:
+  selector:
+    app: trustable
+  type: ClusterIP
+  ports:
+    - name: web
+      port: 8910
+      targetPort: 8910
+    - name: opencode
+      port: 4096
+      targetPort: 4096
+    - name: vite
+      port: 5173
+      targetPort: 5173

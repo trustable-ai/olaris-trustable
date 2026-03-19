@@ -58,8 +58,23 @@ tasks:
         {{end}}
       fi
     - >
-      kubectl -n nuvolaris create secret generic ssh-secret
-      --from-literal=authorized_keys="$(cat {{.SSHKEY}}.pub)" 2>/dev/null || die "ssh-secret already exists"
+      kubectl -n nuvolaris
+      create secret generic ssh-secret
+      --from-literal=authorized_keys="$(cat {{.SSHKEY}}.pub)" 2>/dev/null
+      || die "ssh-secret already exists"
+
+  kube-config:
+    silent: true
+    desc: generate the kubeconfig secret to access the cluster internally
+    cmds:
+    - >
+      cat "$KUBECONFIG"
+      | replace -s 'server: .*$' --stdin --regex
+      -r 'server: https://kubernetes.default.svc.cluster.local'
+      >_kubeconfig
+    - >
+      kubectl -n nuvolaris create secret generic kube-secret
+      --from-literal=kubeconfig="$(base64 -e "$(cat _kubeconfig)")"
 
   ingress:
     silent: true
@@ -70,16 +85,24 @@ tasks:
     cmds:
       - |
         envsubst -i {{.INGRESS}}.yaml -o _ingress.yaml
-        kubectl apply -n nuvolaris -f _ingress.yaml
+        kubectl -n nuvolaris apply -n nuvolaris -f _ingress.yaml
 
   sts:
     silent: true
     desc: deploy the sts in kubernetes
     cmds:
       - |
+        case {{.INGRESS}} in
+          traefik) export INGRESS_SVC=traefik.kube-system.svc.cluster.local ;;
+          nginx) export INGRESS_SVC=http://ingress-nginx-controller.ingress-nginx.svc.cluster.local ;;
+          *) die "unknown service type" ;;
+        esac
+        envsubst -i nginx.conf -o _nginx.conf
+      - kubectl -n nuvolaris create configmap nginx-proxy-config --from-file=nginx.conf=_nginx.conf
+      - |
         export IMAGE="{{.TRUSTABLE_IMAGES_TRUSTABLE}}"
-        envsubst < deployment.yaml >_deployment.yaml
-        kubectl apply -f _deployment.yaml
+        envsubst <sts.yaml >_sts.yaml
+        kubectl -n nuvolaris apply -f _sts.yaml
 
   deploy:
     silent: true
@@ -87,9 +110,13 @@ tasks:
     cmds:
       - ops util apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
       - task: ssh-key
+      - task: kube-config
       - task: ingress
       - task: sts
-      - kubectl -n nuvolaris wait --for=condition=ready pod -l app=trustable --timeout=120s
+      - >
+        kubectl -n nuvolaris wait
+        --for=condition=ready pod
+        -l app=trustable --timeout=120s
       - >
         retry -t 100 -m 600 ssh {{.ENTRY}} exit 2>&1
         | awk '{s=""; for(i=1;i<=NR;i++) s=s"#"; printf "\rwaiting for ssh: [%s]", s; fflush()}'
@@ -103,7 +130,7 @@ tasks:
         kubectl -n nuvolaris delete
         sts/trustable svc/trustable-svc cm/nginx-proxy-config
         ing/trustable-ing ing/opencode-ing ing/vite-ing
-        secret/ssh-secret svc/trustable-ssh
+        secret/ssh-secret secret/kube-secret svc/trustable-ssh
       - echo Please remove the Host {{.ENTRY}} entry from your ~/.ssh/config file if present
 
   connect:

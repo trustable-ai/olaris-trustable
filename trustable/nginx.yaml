@@ -1,20 +1,3 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: trustable-svc
-spec:
-  selector:
-    app: trustable
-  ports:
-    - name: web
-      port: 8910
-      targetPort: 8910
-    - name: opencode
-      port: 4096
-      targetPort: 4096
-    - name: vite
-      port: 5173
-      targetPort: 5173
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -35,9 +18,9 @@ spec:
                 name: trustable-svc
                 port:
                   number: 8910
-  tls:
-    - hosts:
-        - trustable.$DOMAIN
+  #tls:
+  #  - hosts:
+  #      - trustable.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -58,9 +41,9 @@ spec:
                 name: trustable-svc
                 port:
                   number: 4096
-  tls:
-    - hosts:
-        - opencode.$DOMAIN
+  #tls:
+  #  - hosts:
+  #      - opencode.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -81,6 +64,6 @@ spec:
                 name: trustable-svc
                 port:
                   number: 5173
-  tls:
-    - hosts:
-        - vite.$DOMAIN
+  #tls:
+  #  - hosts:
+  #      - vite.$DOMAIN
