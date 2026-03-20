@@ -104,9 +104,9 @@ tasks:
         envsubst <sts.yaml >_sts.yaml
         kubectl -n nuvolaris apply -f _sts.yaml
 
-  deploy:
+  setup:
     silent: true
-    desc: deploy the devcontainer in kubernetes
+    desc: setup trustable
     cmds:
       - ops util apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
       - task: ssh-key
@@ -122,9 +122,9 @@ tasks:
         | awk '{s=""; for(i=1;i<=NR;i++) s=s"#"; printf "\rwaiting for ssh: [%s]", s; fflush()}'
       - echo -e "\nyou can now connect to the devcontainer with 'ssh {{.ENTRY}}'"
 
-  undeploy:
+  uninstall:
     silent: true
-    desc: undeploy the devcontainer in kubernetes
+    desc: uninstall trustable
     cmds:
       - >
         kubectl -n nuvolaris delete

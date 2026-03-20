@@ -34,11 +34,14 @@ echo "Downloading ops..."
 curl -fsSL n7s.co/get-ops | bash
 
 # Initialize and install plugin
-ops -t
+echo "Current Nuvolaris Server:"
+ops util apihost
+echo  "Installing Trustable Plugin"
 ops -plugin https://github.com/trustable-ai/olaris-trustable
 
 echo ""
 echo "================================================"
-echo "  Please close this terminal before using ops."
+echo " Please reopen this terminal before using ops."
+echo " Install Trustable with: 'ops trustable setup'"
 echo "================================================"
 echo ""

@@ -46,15 +46,15 @@ tasks:
       docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
       docker network connect nuvolaris-ollama nuvolaris-control-plane >/dev/null 2>&1 || true
 
-  start:
-    desc: starting ollama
+  setup:
+    desc: setup ollama
     silent: true
     cmds:
     - task: run
     - task: preload
 
-  stop:
-    desc: stopping ollama
+  uninstall:
+    desc: uninstall ollama
     silent: true
     ignore_errors: true
     cmds:
@@ -77,18 +77,6 @@ tasks:
     silent: true
     cmds:
     - docker exec -ti ollama bash
-
-  preload:
-    desc: preload
-    silent: false
-    cmds:
-    - docker ps --format '{{.Names}}' | rg ollama || die "Ollama not running"
-    - |
-      cat ../model.lst | while read model
-      do  echo $model
-          docker exec  ollama ollama pull $model
-      done
-
 
   signin:
     desc: signin

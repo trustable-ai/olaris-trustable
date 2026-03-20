@@ -1,10 +1,12 @@
 version: 3
 tasks:
 
-  install:
-    desc: installing minibestia
+  setup:
+    desc: setup trustable
     cmds:
-    - echo hello
+    - ops setup mini
+    - ops trustable ollama setup
+    - ops trustable trustable setup
 
   ollama:
     desc: managing ollama
@@ -12,9 +14,16 @@ tasks:
   trustable:
     desc: managing trustable
 
-
   update:
     desc: updating plugin
     silent: true
     cmds:
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
+
+  uninstall:
+    prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
+    desc: uninstalling
+    silent: true
+    cmds:
+    - ops trustable ollama uninstall
+    - ops setup docker clean-all

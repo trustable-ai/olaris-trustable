@@ -18,11 +18,14 @@ Write-Host "Downloading ops..."
 powershell -NoProfile -Command "irm n7s.co/get-ops-exe | iex"
 
 # Initialize and install plugin
-ops -t
+Write-Host "Current Nuvolaris Server:"
+ops util apihost
+Write-Host "Installing Trustable Plugin"
 ops -plugin https://github.com/trustable-ai/olaris-trustable
 
 Write-Host ""
-Write-Host "============================================"
-Write-Host "  Please close this terminal before using ops."
-Write-Host "============================================"
+Write-Host "=============================================="
+Write-Host " Please reopen this terminal before using ops."
+Write-Host " Install Trustable with: 'ops trustable setup'"
+Write-Host "=============================================="
 Write-Host ""
