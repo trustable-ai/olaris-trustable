@@ -4,8 +4,8 @@ vars:
   USE_GPU: "--gpus all"
 
 env:
-  BESTIA_IMAGES_OLLAMA:
-    sh: echo $MINIBESTIA_IMAGES_OLLAMA
+  OLLAMA:
+    sh: echo $TRUSTABLE_IMAGES_TRUOLLAMA
 
 tasks:
 
@@ -14,24 +14,25 @@ tasks:
     cmds:
     - docker -v >/dev/null 2>&1 || die "docker is required."
     - ops util apihost | rg 'http://miniops.me' || die "Nuvolaris miniops required"
+    - docker pull "$OLLAMA" || die "cannot pull ollama"
 
   check-gpu:
     silent: true
     cmds:
     - |
       echo "Checking GPU"
-      if nvidia-smi -L 2>/dev/null | rg ^GPU
+      if docker run  -ti --gpus all --entrypoint=/usr/bin/nvidia-smi  $OLLAMA -L   2>/dev/null | rg ^GPU
       then  echo GPU Found
-            echo "--gpu all -e OLLAMA_USE_CUDA=1" >_docker
+            echo "--gpus all -e OLLAMA_USE_CUDA=1" >_docker
       else  echo GPU not found
             echo "" >_docker
       fi
 
   start:
     silent: true
-    desc: run/reconfigure ollama container from current config
+    desc: run ollama container from current config
     cmds:
-    - test -e _docker || die "check-gpu before"
+    - test -e _docker || die "check-gpu required"
     - docker rm -f ollama >/dev/null 2>&1 || true
     - >
       docker run -d
@@ -41,7 +42,7 @@ tasks:
       -v $HOME/.ollama:/root/.ollama
       -e OLLAMA_KEEP_ALIVE=20m
       $(cat _docker)
-      $TRUSTABLE_IMAGES_TRUOLLAMA
+      $OLLAMA
     - |
       docker network create nuvolaris-ollama >/dev/null 2>&1 || true
       docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
