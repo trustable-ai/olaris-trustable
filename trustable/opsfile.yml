@@ -104,7 +104,7 @@ tasks:
         envsubst <sts.yaml >_sts.yaml
         kubectl -n nuvolaris apply -f _sts.yaml
 
-  setup:
+  deploy:
     silent: true
     desc: setup trustable
     cmds:
@@ -122,7 +122,7 @@ tasks:
         | awk '{s=""; for(i=1;i<=NR;i++) s=s"#"; printf "\rwaiting for ssh: [%s]", s; fflush()}'
       - echo -e "\nyou can now connect to the devcontainer with 'ssh {{.ENTRY}}'"
 
-  uninstall:
+  undeploy:
     silent: true
     desc: uninstall trustable
     cmds:

@@ -5,8 +5,8 @@ tasks:
     desc: setup trustable
     cmds:
     - ops setup mini
-    - ops trustable ollama setup
-    - ops trustable trustable setup
+    - ops trustable ollama deploy
+    - ops trustable trustable deploy
 
   ollama:
     desc: managing ollama
