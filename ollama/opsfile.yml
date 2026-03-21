@@ -40,7 +40,7 @@ tasks:
       -p 11434:11434 \
       -v $HOME/.ollama:/root/.ollama \
       -e OLLAMA_KEEP_ALIVE=20m \
-      $(cat _docker) $TRUSTABLE_IMAGES_OLLAMA >/dev/null
+      $(cat _docker) $TRUSTABLE_IMAGES_TRUSTABLE_OLLAMA >/dev/null
     - |
       docker network create nuvolaris-ollama >/dev/null 2>&1 || true
       docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
