@@ -2,7 +2,7 @@
   "version": "0.1.0-2409121919.dev",
   "config": {
     "images": {
-      "trustable-ollama": "docker.io/ollama/ollama:0.18.2",
+      "truollama": "docker.io/ollama/ollama:0.18.2",
       "trustable": "ghrc.io/trustable-ai/trustable-app:2026.0319.0804"
     }
   }

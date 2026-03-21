@@ -32,15 +32,16 @@ tasks:
     desc: run/reconfigure ollama container from current config
     cmds:
     - test -e _docker || die "check-gpu before"
-    - |
-      docker rm -f ollama >/dev/null 2>&1 || true
-      docker run -d \
-      --name ollama \
-      --restart unless-stopped \
-      -p 11434:11434 \
-      -v $HOME/.ollama:/root/.ollama \
-      -e OLLAMA_KEEP_ALIVE=20m \
-      $(cat _docker) $TRUSTABLE_IMAGES_TRUSTABLE_OLLAMA >/dev/null
+    - docker rm -f ollama >/dev/null 2>&1 || true
+    - >
+      docker run -d
+      --name ollama
+      --restart unless-stopped
+      -p 11434:11434
+      -v $HOME/.ollama:/root/.ollama
+      -e OLLAMA_KEEP_ALIVE=20m
+      $(cat _docker)
+      $TRUSTABLE_IMAGES_TRUOLLAMA
     - |
       docker network create nuvolaris-ollama >/dev/null 2>&1 || true
       docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
