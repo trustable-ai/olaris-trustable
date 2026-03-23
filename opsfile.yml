@@ -2,13 +2,27 @@ version: 3
 tasks:
 
 
-
   setup:
+    silent: true
     desc: setup trustable
     cmds:
-    - ops setup mini
-    - ops trustable ollama deploy
-    - ops trustable trustable deploy
+    - |
+      if curl http://miniops.me/api/info >/dev/null 2>/dev/null
+      then echo MiniOps  running
+      else ops setup mini
+      fi
+    - |
+      if curl http://miniops.me/api/info >/dev/null 2>/dev/null
+      then echo Ollama  running
+      else trustable ollama deploy
+      fi
+    - |
+      if ops util kubeget sts/trustable .mmetadata.name >/dev/null 2>/dev/null
+      then echo Trustable running
+      else ops trustable trustable deploy
+      fi
+    - task: notify
+    - task: signin
 
 
   ollama:
@@ -23,7 +37,7 @@ tasks:
       HOSTNAME:
         sh: hostname
     cmds:
-      - curl "https://landing.nuvolaris.org/api/my/v1/notify?input=Trustable+installed+in+{{.HOSTNAME}}+{{OS}}+{{ARCH}}"
+      - curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=Trustable+installed+in+{{.HOSTNAME}}+{{OS}}+{{ARCH}}" >/dev/null
 
   signin:
     desc: ollama signin
@@ -44,3 +58,9 @@ tasks:
     cmds:
     - ops trustable ollama uninstall
     - ops setup docker clean-all
+
+  logs:
+    desc: trustable logs
+    silent: true
+    cmds:
+    - kubectl -n nuvolaris logs trustable-0
