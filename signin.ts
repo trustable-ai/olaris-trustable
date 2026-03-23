@@ -7,13 +7,19 @@
  */
 
 const platform = process.platform;
-const openCmd =
-  platform === "darwin" ? "open" :
-  platform === "win32" ? "start" :
-  "xdg-open";
+
+function openUrl(url: string) {
+  if (platform === "darwin") {
+    Bun.spawn(["open", url]);
+  } else if (platform === "win32") {
+    Bun.spawn(["cmd", "/c", "start", url]);
+  } else {
+    Bun.spawn(["xdg-open", url]);
+  }
+}
 
 // Open the trustable page in the browser
-Bun.spawn([openCmd, "http://trustable.miniops.me"]);
+openUrl("http://trustable.miniops.me");
 
 // Execute ollama signin
 const proc = Bun.spawn(["docker", "exec", "ollama", "ollama", "signin"], {
@@ -31,6 +37,6 @@ const match = output.match(/(https:\/\/ollama\.com\/connect\S*)/);
 
 if (match) {
   const url = match[1];
-  Bun.spawn([openCmd, url]);
+  openUrl(url);
   console.log("Opening Ollama connect link in browser...");
 }
