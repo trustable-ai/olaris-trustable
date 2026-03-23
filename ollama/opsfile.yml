@@ -89,8 +89,8 @@ tasks:
     cmds:
     - docker exec -ti ollama bash
 
-  signin:
-    desc: signin
+  signout:
+    desc: signout
     silent: true
     cmds:
-    - docker exec -ti ollama ollama signin
+    - docker exec -ti ollama ollama signout

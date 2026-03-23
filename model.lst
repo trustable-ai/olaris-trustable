@@ -8,4 +8,3 @@ nomic-embed-text-v2-moe:latest
 qwen3-coder-next:cloud
 qwen3-coder:480b-cloud
 qwen3.5:cloud
-qwen3:1.7b

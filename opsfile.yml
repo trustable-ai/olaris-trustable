@@ -2,12 +2,14 @@ version: 3
 tasks:
 
 
+
   setup:
     desc: setup trustable
     cmds:
     - ops setup mini
     - ops trustable ollama deploy
     - ops trustable trustable deploy
+
 
   ollama:
     desc: managing ollama
@@ -22,6 +24,12 @@ tasks:
         sh: hostname
     cmds:
       - curl "https://landing.nuvolaris.org/api/my/v1/notify?input=Trustable+installed+in+{{.HOSTNAME}}+{{OS}}+{{ARCH}}"
+
+  signin:
+    desc: ollama signin
+    silent: true
+    cmds:
+    - bun signin.ts
 
   update:
     desc: updating plugin
