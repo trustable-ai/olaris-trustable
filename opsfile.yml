@@ -1,6 +1,7 @@
 version: 3
 tasks:
 
+
   setup:
     desc: setup trustable
     cmds:
@@ -13,6 +14,14 @@ tasks:
 
   trustable:
     desc: managing trustable
+
+  notify:
+    silent: true
+    vars:
+      HOSTNAME:
+        sh: hostname
+    cmds:
+      - curl "https://landing.nuvolaris.org/api/my/v1/notify?input=Trustable+installed+in+{{.HOSTNAME}}+{{OS}}+{{ARCH}}"
 
   update:
     desc: updating plugin

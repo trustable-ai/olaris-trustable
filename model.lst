@@ -1,5 +1,7 @@
 devstral-2:123b-cloud
 glm-4.7:cloud
+gpt-oss:120b-cloud
+gpt-oss:20b-cloud
 kimi-k2.5:cloud
 minimax-m2.5:cloud
 nomic-embed-text-v2-moe:latest
