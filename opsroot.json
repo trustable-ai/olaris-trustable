@@ -3,7 +3,7 @@
   "config": {
     "images": {
       "truollama": "docker.io/ollama/ollama:0.18.2",
-      "trustable": ":"
+      "trustable": ":2026.0323.1924"
     }
   }
 }
