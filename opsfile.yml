@@ -56,11 +56,17 @@ tasks:
     desc: uninstalling
     silent: true
     cmds:
-    - ops trustable ollama uninstall
+    - ops trustable ollama undeploy
+    - ops setup kubernetes delete
+
+
+  clean:
+    prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
+    cmds:
     - ops setup docker clean-all
 
   logs:
     desc: trustable logs
     silent: true
     cmds:
-    - kubectl -n nuvolaris logs trustable-0
+    - kubectl -n nuvolaris logs trustable-0 -f

@@ -133,6 +133,15 @@ tasks:
         secret/ssh-secret secret/kube-secret svc/trustable-ssh
       - echo Please remove the Host {{.ENTRY}} entry from your ~/.ssh/config file if present
 
+
+  redeploy:
+    silent: true
+    desc: redeploy trustable
+    cmds:
+    - task: undeploy
+    - task: deploy
+    - ops trustable signin
+
   connect:
     silent: true
     desc: specify U=<user> and H=<host> to connect a remote devcontainer
