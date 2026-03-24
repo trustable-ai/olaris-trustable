@@ -1,9 +1,10 @@
 /*
   Implement signin.ts with bun without dependencies
+  Accept an args as trustable url, defaults to http://trustable.miniops.me
   Execute docker exec ollama ollama signin and print the output.
   Parse the output, you find a url starting with https://ollama.com/connect extract the query string.
-  Invoke the browser to open http://trustable.miniops.me and add the query string.
-  Otherwise just open the url without the query string.
+  Invoke the browser to open trustable url  and add the query string.
+  Otherwise just open the trustable url without the query string.
   On Windows use powershell Start-Process to handle URLs with '&' in query strings.
  */
 
@@ -18,6 +19,8 @@ function openUrl(url: string) {
     Bun.spawn(["xdg-open", url]);
   }
 }
+
+const trustableUrl = process.argv[2] || "http://trustable.miniops.me";
 
 // Execute ollama signin
 const proc = Bun.spawn(["docker", "exec", "ollama", "ollama", "signin"], {
@@ -36,10 +39,10 @@ const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
 
 if (match) {
   const queryString = match[1];
-  const url = `http://trustable.miniops.me?${queryString}`;
+  const url = `${trustableUrl}?${queryString}`;
   openUrl(url);
   console.log(`Opening ${url}`);
 } else {
-  openUrl("http://trustable.miniops.me");
-  console.log("Opening http://trustable.miniops.me");
+  openUrl(trustableUrl);
+  console.log(`Opening ${trustableUrl}`);
 }
