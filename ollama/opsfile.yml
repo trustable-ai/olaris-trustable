@@ -100,6 +100,13 @@ tasks:
       "stream": false
       }'
 
+
+  signin:
+    desc: signout
+    silent: true
+    cmds:
+    - docker exec -ti ollama ollama signin
+
   signout:
     desc: signout
     silent: true

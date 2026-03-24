@@ -1,9 +1,10 @@
 /*
   Implement signin.ts with bun without dependencies
   Execute docker exec ollama ollama signin and print the output.
-  Parse the output, you find a url starting with https://ollama.com/connect extract the query string
-  Invoke the browser to open http://trustable.miniops.me and add the query string of ollama connect.
+  Parse the output, you find a url starting with https://ollama.com/connect extract the query string.
+  Invoke the browser to open http://trustable.miniops.me and add the query string.
   Otherwise just open the url without the query string.
+  On Windows use powershell Start-Process to handle URLs with '&' in query strings.
  */
 
 const platform = process.platform;
@@ -12,7 +13,7 @@ function openUrl(url: string) {
   if (platform === "darwin") {
     Bun.spawn(["open", url]);
   } else if (platform === "win32") {
-    Bun.spawn(["cmd", "/c", "start", url]);
+    Bun.spawn(["powershell", "-Command", `Start-Process '${url}'`]);
   } else {
     Bun.spawn(["xdg-open", url]);
   }
