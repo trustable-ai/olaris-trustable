@@ -89,7 +89,7 @@ tasks:
     cmds:
     - docker exec -ti ollama bash
 
-  check-cloud:
+  signed:
     desc: check if could is reachable
     silent: true
     cmds:
