@@ -51,6 +51,13 @@ tasks:
     silent: true
     cmds:
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
+    - echo "pluging updated - use ops trustable redeploy to redeploy trustable"
+
+
+  redeploy:
+    desc: redeploy trustable and ollama
+    cmds:
+    - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 
   uninstall:

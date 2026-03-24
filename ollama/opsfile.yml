@@ -105,3 +105,9 @@ tasks:
     silent: true
     cmds:
     - docker exec -ti ollama ollama signout
+
+  redeploy:
+    desc: redeploy ollama
+    cmds:
+    - task: undeploy
+    - task: deploy
