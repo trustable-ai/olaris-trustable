@@ -133,7 +133,6 @@ tasks:
         secret/ssh-secret secret/kube-secret svc/trustable-ssh
       - echo Please remove the Host {{.ENTRY}} entry from your ~/.ssh/config file if present
 
-
   redeploy:
     silent: true
     desc: redeploy trustable

@@ -15,9 +15,9 @@ spec:
     spec:
       hostname: trustable
       volumes:
-      - name: workspace
-        hostPath:
-          path: /workspace
+      #- name: workspace
+      #  hostPath:
+      #    path: /workspace
       - name: nginx-config
         configMap:
           name: nginx-proxy-config
@@ -41,9 +41,9 @@ spec:
         securityContext:
           runAsUser: $USERID
           runAsGroup: $USERID
-        volumeMounts:
-        - name: workspace
-          mountPath: /home/node/data
+        #volumeMounts:
+        #- name: workspace
+        #  mountPath: /home/node/data
         env:
         - name: DEBIAN_FRONTEND
           value: noninteractive
