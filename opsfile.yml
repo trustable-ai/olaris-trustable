@@ -43,6 +43,7 @@ tasks:
     desc: ollama signin
     silent: true
     cmds:
+    - ops trustable ollama signout
     - bun signin.ts
 
   update:
