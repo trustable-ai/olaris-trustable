@@ -1,9 +1,9 @@
 /*
   Implement signin.ts with bun without dependencies
-  Invoke the browser to open http://trustable.miniops.me
   Execute docker exec ollama ollama signin and print the output.
-  Parse the output, you find a url starting with https://ollama.com/connect
-  invoke the browser to open also url
+  Parse the output, you find a url starting with https://ollama.com/connect extract the query string
+  Invoke the browser to open http://trustable.miniops.me and add the query string of ollama connect.
+  Otherwise just open the url without the query string.
  */
 
 const platform = process.platform;
@@ -18,9 +18,6 @@ function openUrl(url: string) {
   }
 }
 
-// Open the trustable page in the browser
-openUrl("http://trustable.miniops.me");
-
 // Execute ollama signin
 const proc = Bun.spawn(["docker", "exec", "ollama", "ollama", "signin"], {
   stdout: "pipe",
@@ -33,10 +30,15 @@ const output = stdout + stderr;
 
 console.log(output.trim());
 
-const match = output.match(/(https:\/\/ollama\.com\/connect\S*)/);
+// Extract the query string from the ollama connect URL
+const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
 
 if (match) {
-  const url = match[1];
+  const queryString = match[1];
+  const url = `http://trustable.miniops.me?${queryString}`;
   openUrl(url);
-  console.log("Opening Ollama connect link in browser...");
+  console.log(`Opening ${url}`);
+} else {
+  openUrl("http://trustable.miniops.me");
+  console.log("Opening http://trustable.miniops.me");
 }
