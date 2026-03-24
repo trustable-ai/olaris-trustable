@@ -51,6 +51,7 @@ tasks:
     silent: true
     cmds:
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
+    - ops trustable trustable redeploy
 
   uninstall:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
@@ -59,7 +60,6 @@ tasks:
     cmds:
     - ops trustable ollama undeploy
     - ops setup kubernetes delete
-
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
