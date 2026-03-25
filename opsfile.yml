@@ -22,9 +22,9 @@ tasks:
       else ops setup mini
       fi
     - |
-      if curl http://miniops.me/api/info >/dev/null 2>/dev/null
+      if curl http://localhost:11434 >/dev/null 2>/dev/null
       then echo Ollama  running
-      else trustable ollama deploy
+      else ops trustable ollama deploy
       fi
     - |
       if ops util kubeget sts/trustable .metadata.name >/dev/null 2>/dev/null
