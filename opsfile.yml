@@ -60,7 +60,6 @@ tasks:
     desc: updating plugin
     silent: true
     cmds:
-    - rm -rf ~/.ops/olaris-trustable
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
     - echo "pluging updated - use 'ops trustable redeploy' to redeploy trustable"
 
