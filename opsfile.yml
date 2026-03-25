@@ -1,11 +1,22 @@
 version: 3
 tasks:
 
+  prereq:
+    desc: checking prerequisites
+    silent: true
+    cmds:
+    - |
+      if docker pull scratch
+      then true
+      else echo "Cannot pull images - you need to login in docker"
+      fi
+
 
   setup:
     silent: true
     desc: setup trustable
     cmds:
+    - task: prereq
     - |
       if curl http://miniops.me/api/info >/dev/null 2>/dev/null
       then echo MiniOps  running
@@ -17,7 +28,7 @@ tasks:
       else trustable ollama deploy
       fi
     - |
-      if ops util kubeget sts/trustable .mmetadata.name >/dev/null 2>/dev/null
+      if ops util kubeget sts/trustable .metadata.name >/dev/null 2>/dev/null
       then echo Trustable running
       else ops trustable trustable deploy
       fi
@@ -50,6 +61,7 @@ tasks:
     desc: updating plugin
     silent: true
     cmds:
+    - rm -rf ~/.ops/olaris-trustable
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
     - echo "pluging updated - use 'ops trustable redeploy' to redeploy trustable"
 
