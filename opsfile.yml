@@ -6,11 +6,10 @@ tasks:
     silent: true
     cmds:
     - |
-      if docker pull scratch
+      if docker pull alpine
       then true
       else echo "Cannot pull images - you need to login in docker"
       fi
-
 
   setup:
     silent: true
@@ -68,6 +67,7 @@ tasks:
   redeploy:
     desc: redeploy trustable and ollama
     cmds:
+    - task: prereq
     - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 

@@ -25,6 +25,14 @@ env:
 
 tasks:
 
+  preload:
+    desc: preload images
+    silent: true
+    cmds:
+    - |
+      docker pull "$TRUSTABLE_IMAGES_TRUSTABLE"
+      kind load docker-image "$TRUSTABLE_IMAGES_TRUSTABLE" -n nuvolaris
+
   ssh-key:
     silent: true
     desc: generate and deploy an ssh key
@@ -61,6 +69,7 @@ tasks:
       kubectl -n nuvolaris
       create secret generic ssh-secret
       --from-literal=authorized_keys="$(cat {{.SSHKEY}}.pub)" 2>/dev/null
+      --from-literal=id_ed25519="$(cat {{.SSHKEY}})"
       || die "ssh-secret already exists"
 
   kube-config:
@@ -109,6 +118,7 @@ tasks:
     desc: setup trustable
     cmds:
       - ops util apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
+      - task: preload
       - task: ssh-key
       - task: kube-config
       - task: ingress
