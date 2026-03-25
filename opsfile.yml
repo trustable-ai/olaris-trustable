@@ -51,8 +51,7 @@ tasks:
     silent: true
     cmds:
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
-    - echo "pluging updated - use ops trustable redeploy to redeploy trustable"
-
+    - echo "pluging updated - use 'ops trustable redeploy' to redeploy trustable"
 
   redeploy:
     desc: redeploy trustable and ollama
@@ -66,7 +65,9 @@ tasks:
     silent: true
     cmds:
     - ops trustable ollama undeploy
-    - ops setup kubernetes delete
+    - ops setup docker delete
+    - ops -reset force
+    - rm -f ~/.local/bin/ops ~/.local/bin/ops.exe
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
