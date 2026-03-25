@@ -70,11 +70,12 @@ tasks:
     - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 
-  remove-ops:
+  remove-all:
     - |
       {{if eq OS "windows"}}
-      cmd /c start "" cmd /c 'timeout /t 2 -n 3 >nul & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops'
+      cmd /c start "" cmd /c 'timeout /t 2 -n 3 >nul &  %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe -reset force & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops'
       {{else}}
+      ops -reset force
       /bin/rm -f ~/.local/bin/ops
       {{end}}
 
@@ -86,8 +87,7 @@ tasks:
     cmds:
     - ops trustable ollama undeploy
     - ops setup docker delete
-    - ops -reset force
-    - task: remove-ops
+    - task: remove-all
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
