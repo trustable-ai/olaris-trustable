@@ -72,10 +72,10 @@ tasks:
 
   remove-all:
     - |
-      {{if eq OS "windows"}}
-      start "" powershell -Command "Start-Sleep -Seconds 1; & \"$env:HOMEDRIVE$env:HOMEPATH\.local\bin\ops.exe\" -reset force ; Remove-Item \"$env:HOMEDRIVE$env:HOMEPATH\.local\bin\ops.exe\" -Force"
-      {{else}}
       ops -reset force
+      {{if eq OS "windows"}}
+      cmd /c start "" 'del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe'
+      {{else}}
       /bin/rm -f ~/.local/bin/ops
       {{end}}
 
