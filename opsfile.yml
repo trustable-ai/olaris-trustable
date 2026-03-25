@@ -70,11 +70,12 @@ tasks:
     - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 
-  rm-ops:
+  remove-all:
     - |
       {{if eq OS "windows"}}
-      start "" powershell -Command "Start-Sleep -Seconds 1; Remove-Item \"$env:HOMEDRIVE$env:HOMEPATH\.local\bin\ops.exe\" -Force"
+      start "" powershell -Command "Start-Sleep -Seconds 1; ops -reset force ; Remove-Item \"$env:HOMEDRIVE$env:HOMEPATH\.local\bin\ops.exe\" -Force"
       {{else}}
+      ops -reset force
       /bin/rm -f ~/.local/bin/ops
       {{end}}
 
@@ -85,8 +86,7 @@ tasks:
     cmds:
     - ops trustable ollama undeploy
     - ops setup docker delete
-    - ops -reset force
-    - task: rm-ops
+    - task: remove-all
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
