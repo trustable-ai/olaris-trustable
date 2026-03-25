@@ -29,9 +29,7 @@ tasks:
     desc: preload images
     silent: true
     cmds:
-    - |
-      docker pull "$TRUSTABLE_IMAGES_TRUSTABLE"
-      kind load docker-image "$TRUSTABLE_IMAGES_TRUSTABLE" -n nuvolaris
+    - ops util freeze kind-preload-one  "$TRUSTABLE_IMAGES_TRUSTABLE"
 
   ssh-key:
     silent: true

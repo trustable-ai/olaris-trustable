@@ -34,7 +34,6 @@ tasks:
     - task: notify
     - task: signin
 
-
   ollama:
     desc: managing ollama
 
@@ -60,8 +59,9 @@ tasks:
     desc: updating plugin
     silent: true
     cmds:
+    - ops -update
     - ops -plugin https://github.com/trustable-ai/olaris-trustable
-    - echo "Trustable Plugin updated - use 'ops trustable redeploy' to redeploy trustable"
+    - echo "Trustable updated - use 'ops trustable redeploy' to redeploy trustable"
 
   redeploy:
     desc: redeploy trustable and ollama
