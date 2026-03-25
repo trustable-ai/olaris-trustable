@@ -71,6 +71,14 @@ tasks:
     - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 
+  rm-ops:
+    - |
+      {{if eq OS "windows"}}
+      cmd /c 'del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe'
+      {{else}}
+      /bin/rm -f ~/.local/bin/ops
+      {{end}}
+
   uninstall:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
     desc: uninstalling
@@ -79,7 +87,7 @@ tasks:
     - ops trustable ollama undeploy
     - ops setup docker delete
     - ops -reset force
-    - rm -f ~/.local/bin/ops ~/.local/bin/ops.exe
+    - task: rm-ops
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
