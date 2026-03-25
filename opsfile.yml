@@ -73,7 +73,7 @@ tasks:
   remove-ops:
     - |
       {{if eq OS "windows"}}
-      cmd /c start "" cmd /c 'timeout /t 2 -n 3 >nul & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe'
+      cmd /c start "" cmd /c 'timeout /t 2 -n 3 >nul & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops'
       {{else}}
       /bin/rm -f ~/.local/bin/ops
       {{end}}
