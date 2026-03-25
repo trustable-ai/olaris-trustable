@@ -73,9 +73,9 @@ tasks:
   remove-all:
     - |
       {{if eq OS "windows"}}
-      cmd /c start "" cmd /c 'timeout /t 2 -n 3 >nul &  %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe -reset force & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops & rmdir /s /q  %HOMEDRIVE%%HOMEPATH%\.ops'
+      cmd /c start "" cmd /c "timeout /t 2 & %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe -reset force & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops.exe & del %HOMEDRIVE%%HOMEPATH%\.local\bin\ops & rmdir /s /q %HOMEDRIVE%%HOMEPATH%\.ops"
       {{else}}
-      ops -reset force
+      ops -reset force ;
       /bin/rm -f ~/.local/bin/ops
       {{end}}
 
