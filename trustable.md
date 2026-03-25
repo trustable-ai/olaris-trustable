@@ -37,9 +37,9 @@ ops -plugin https://github.com/trustable-ai/olaris-trustable
 
 Finally display a message
 
-================================================
+==================================================
  Please reopen this terminal before using ops.
  Install Trustable with: 'ops trustable setup'
  For more information and bug reports:
- https://github.com/trustable-ai/support
-================================================
+ https://github.com/trustable-ai
+==================================================
