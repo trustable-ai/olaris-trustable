@@ -82,6 +82,7 @@ tasks:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
     desc: uninstalling
     silent: true
+    ignore_error: true
     cmds:
     - ops trustable ollama undeploy
     - ops setup docker delete
