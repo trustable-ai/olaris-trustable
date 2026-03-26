@@ -74,6 +74,7 @@ tasks:
       {{if eq OS "windows"}}
       cmd /c start "" cmd /c 'timeout /t 2 & cd %HOMEDRIVE%%HOMEPATH% & .local\bin\ops.exe -reset force & del .local\bin\ops.exe & del .local\bin\ops'
       {{else}}
+      cd ~
       ops -reset force ;
       /bin/rm -f ~/.local/bin/ops
       {{end}}
