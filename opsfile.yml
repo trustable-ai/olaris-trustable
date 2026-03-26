@@ -55,7 +55,6 @@ tasks:
   redeploy:
     desc: redeploy trustable and ollama
     cmds:
-    - task: prereq
     - ops trustable ollama redeploy
     - ops trustable trustable redeploy
 
