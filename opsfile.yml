@@ -1,21 +1,11 @@
 version: 3
 tasks:
 
-  prereq:
-    desc: checking prerequisites
-    silent: true
-    cmds:
-    - |
-      if docker pull alpine
-      then true
-      else echo "Cannot pull images - you need to login in docker"
-      fi
 
   setup:
     silent: true
     desc: setup trustable
     cmds:
-    - task: prereq
     - |
       if curl http://miniops.me/api/info >/dev/null 2>/dev/null
       then echo MiniOps  running
