@@ -3,7 +3,7 @@
   "config": {
     "images": {
       "truollama": "docker.io/ollama/ollama:0.18.2",
-      "trustable": "ghcr.io/trustable-ai/trustable-app:26.085.1241"
+      "trustable": "ghcr.io/trustable-ai/trustable-app:26.085.1240"
     }
   }
 }
