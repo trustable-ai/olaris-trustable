@@ -1,6 +1,20 @@
 version: 3
 tasks:
 
+  check:
+    silent: true
+    env:
+      IMAGE:
+        sh: >
+            echo "$TRUSTABLE_IMAGES_TRUSTABLE"
+            | awk -F: '{print $1}'
+      TAG:
+        sh: >
+            echo "$TRUSTABLE_IMAGES_TRUSTABLE"
+            | awk -F: '{print $2}'
+    cmds:
+    - docker pull $TRUSTABLE_IMAGES_TRUSTABLE
+    - docker images | rg $IMAGE | rg $TAG
 
   setup:
     silent: true
