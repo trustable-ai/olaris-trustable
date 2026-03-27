@@ -66,7 +66,6 @@ tasks:
     - >
       kubectl -n nuvolaris
       create secret generic ssh-secret
-      --from-literal=authorized_keys="$(cat {{.SSHKEY}}.pub)" 2>/dev/null
       --from-literal=id_ed25519="$(cat {{.SSHKEY}})"
       || die "ssh-secret already exists"
 

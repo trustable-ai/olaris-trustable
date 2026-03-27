@@ -47,11 +47,11 @@ spec:
         env:
         - name: DEBIAN_FRONTEND
           value: noninteractive
-        - name: SSHKEY
+        - name: ID_ED25519
           valueFrom:
             secretKeyRef:
               name: ssh-secret
-              key: authorized_keys
+              key: id_ed25519
         - name: B64KUBECONFIG
           valueFrom:
             secretKeyRef:
