@@ -41,6 +41,7 @@ ops -t
 # Install plugin
 Write-Host "Installing Trustable Plugin..."
 ops -plugin https://github.com/trustable-ai/olaris-trustable
+ops trustable notify MSG=Download
 
 Write-Host ""
 Write-Host "================================================"

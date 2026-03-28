@@ -60,6 +60,7 @@ ops -t
 # Install plugin
 echo "Installing Trustable Plugin..."
 ops -plugin https://github.com/trustable-ai/olaris-trustable
+ops trustable notify MSG=Download
 
 echo ""
 echo "================================================"

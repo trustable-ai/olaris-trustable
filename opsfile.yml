@@ -14,7 +14,7 @@ tasks:
     silent: true
     desc: setup trustable
     cmds:
-    - rm -f _success
+    - touch _fail
     - defer: ops trustable notify
     - defer: ops trustable doctor
     - |
@@ -32,7 +32,7 @@ tasks:
       then echo Trustable running
       else ops trustable trustable deploy
       fi
-    - touch _success
+    - rm -f _fail
     - task: signin
 
   ollama:
@@ -48,9 +48,13 @@ tasks:
         sh: hostname
     cmds:
       - |
-        MSG="Trustable+install+{{.HOSTNAME}}+{{OS}}+{{ARCH}}"
-        if ! test -e _success
-        then MSG="FAIL+$MSG"
+        MSG="{{.HOSTNAME}}+{{OS}}+{{ARCH}}+{{.MSG}}"
+        if test -z "{{.MSG}}"
+        then
+          if test -e _fail
+          then MSG="${MSG}+FAIL"
+          else MSG="${MSG}+Success"
+          fi
         fi
         curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" >/dev/null
 
