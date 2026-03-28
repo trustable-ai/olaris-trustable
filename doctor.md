@@ -1,13 +1,18 @@
-Create the file doctor.ts run by bun,  as a file file with no dependencies,
-uses docker, kubectl and coreutils on the path
+Create the file doctor.ts run by bun, as a file with no dependencies,
+uses docker and kubectl on the path.
+Must work cross-platform on macOS, Linux and Windows.
 
 perform the following checks to detect errors
 and provide detailed informations on the errors
 
 # Prereq
 
-- check you have at least 16gb and 30gb of disk
-- check docker is in path
+- check you have at least 16gb of memory and 30gb of disk space
+  - macOS: `sysctl -n hw.memsize` for memory, `df -g .` for disk
+  - Linux: `/proc/meminfo` for memory, `df -BG .` for disk
+  - Windows: PowerShell `Get-CimInstance Win32_ComputerSystem` for memory, `Get-PSDrive` for disk
+  - round memory to nearest GB before comparing (hardware reports slightly less than nominal)
+- check docker is in path (`which` on Unix, `where` on Windows)
 - check docker is up and running
 - check docker call pull images: execute commands and access the internet:
  pulling a curl image that curl http://google.com and verify there is an html answer and a Location redirects
@@ -16,6 +21,8 @@ and provide detailed informations on the errors
 
 # Ports
 - check miniops.me, trustable.miniops.me, opencode.miniops.me and vite.miniops.me returns 127.0.0.1
+  - Unix: `dig +short <host>`
+  - Windows: PowerShell `Resolve-DnsName`
 - check http://localhost:11434 returns Ollama is running
 - check http://miniops.me/api/info returns a json and .description is OpenWhisk
 - check connecting to localhost 2222 what returns starts with SSH
@@ -85,7 +92,7 @@ https://nuvolaris.org/api/v1/web/landing/v1/issue
 
 do a post with a json with
 {
-    "open": "<Result> for <output of `coreutils hostname`> running <output of `coreutils uname -a`>"
+    "open": "<Result> for <output of `hostname`> running <output of `uname -a` (Unix) or PowerShell OSVersion (Windows)>"
     "body": <initial assessment>
 }
 

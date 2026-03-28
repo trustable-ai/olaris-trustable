@@ -106,10 +106,11 @@ async function checkPrereqs() {
       const { stdout } = await exec(["sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2}'"]);
       gb = parseInt(stdout) / (1024 * 1024);
     }
-    if (gb >= 16) {
-      record("Memory", "ok", `${gb.toFixed(0)} GB`);
+    const gbRounded = Math.round(gb);
+    if (gbRounded >= 16) {
+      record("Memory", "ok", `${gbRounded} GB`);
     } else {
-      record("Memory", "fail", `${gb.toFixed(0)} GB (need at least 16 GB)`);
+      record("Memory", "fail", `${gbRounded} GB (need at least 16 GB)`);
     }
   } catch {
     record("Memory", "warn", "Could not determine memory");
@@ -198,11 +199,18 @@ async function checkPorts() {
   // DNS checks
   const hosts = ["miniops.me", "trustable.miniops.me", "opencode.miniops.me", "vite.miniops.me"];
   for (const host of hosts) {
-    const { stdout, exitCode } = await exec(["sh", "-c", `dig +short ${host} | head -1`]);
-    if (exitCode === 0 && stdout.trim() === "127.0.0.1") {
+    let resolved = "";
+    if (process.platform === "win32") {
+      const { stdout, exitCode } = await exec(["powershell", "-Command", `(Resolve-DnsName ${host} -Type A -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress`]);
+      if (exitCode === 0) resolved = stdout.trim();
+    } else {
+      const { stdout, exitCode } = await exec(["sh", "-c", `dig +short ${host} | head -1`]);
+      if (exitCode === 0) resolved = stdout.trim();
+    }
+    if (resolved === "127.0.0.1") {
       record(`DNS ${host}`, "ok", "resolves to 127.0.0.1");
     } else {
-      record(`DNS ${host}`, "fail", `resolves to '${stdout}' (expected 127.0.0.1)`);
+      record(`DNS ${host}`, "fail", `resolves to '${resolved}' (expected 127.0.0.1)`);
     }
   }
 
