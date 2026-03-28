@@ -95,47 +95,58 @@ async function checkPrereqs() {
 
   // Memory check
   try {
-    const { stdout } = await exec(["sysctl", "-n", "hw.memsize"]);
-    const gb = parseInt(stdout) / (1024 ** 3);
+    let gb = 0;
+    if (process.platform === "darwin") {
+      const { stdout } = await exec(["sysctl", "-n", "hw.memsize"]);
+      gb = parseInt(stdout) / (1024 ** 3);
+    } else if (process.platform === "win32") {
+      const { stdout } = await exec(["powershell", "-Command", "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"]);
+      gb = parseInt(stdout) / (1024 ** 3);
+    } else {
+      const { stdout } = await exec(["sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2}'"]);
+      gb = parseInt(stdout) / (1024 * 1024);
+    }
     if (gb >= 16) {
       record("Memory", "ok", `${gb.toFixed(0)} GB`);
     } else {
       record("Memory", "fail", `${gb.toFixed(0)} GB (need at least 16 GB)`);
     }
   } catch {
-    // Linux fallback
-    try {
-      const { stdout } = await exec(["sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2}'"]);
-      const gb = parseInt(stdout) / (1024 * 1024);
-      if (gb >= 16) {
-        record("Memory", "ok", `${gb.toFixed(0)} GB`);
-      } else {
-        record("Memory", "fail", `${gb.toFixed(0)} GB (need at least 16 GB)`);
-      }
-    } catch {
-      record("Memory", "warn", "Could not determine memory");
-    }
+    record("Memory", "warn", "Could not determine memory");
   }
 
   // Disk check
   try {
-    const { stdout } = await exec(["df", "-g", "."]);
-    const lines = stdout.split("\n");
-    if (lines.length >= 2) {
-      const parts = lines[1].split(/\s+/);
-      const available = parseInt(parts[3]);
-      if (available >= 30) {
-        record("Disk", "ok", `${available} GB available`);
-      } else {
-        record("Disk", "fail", `${available} GB available (need at least 30 GB)`);
+    let available = 0;
+    if (process.platform === "win32") {
+      const { stdout } = await exec(["powershell", "-Command", "(Get-PSDrive C).Free"]);
+      available = Math.floor(parseInt(stdout) / (1024 ** 3));
+    } else if (process.platform === "darwin") {
+      const { stdout } = await exec(["df", "-g", "."]);
+      const lines = stdout.split("\n");
+      if (lines.length >= 2) {
+        available = parseInt(lines[1].split(/\s+/)[3]);
       }
+    } else {
+      // Linux: df doesn't support -g, use -BG for gigabyte blocks
+      const { stdout } = await exec(["df", "-BG", "."]);
+      const lines = stdout.split("\n");
+      if (lines.length >= 2) {
+        available = parseInt(lines[1].split(/\s+/)[3]);
+      }
+    }
+    if (available >= 30) {
+      record("Disk", "ok", `${available} GB available`);
+    } else {
+      record("Disk", "fail", `${available} GB available (need at least 30 GB)`);
     }
   } catch {
     record("Disk", "warn", "Could not determine disk space");
   }
 
   // Docker in path
-  const dockerWhich = await exec(["which", "docker"]);
+  const whichCmd = process.platform === "win32" ? "where" : "which";
+  const dockerWhich = await exec([whichCmd, "docker"]);
   if (dockerWhich.exitCode === 0) {
     record("Docker in PATH", "ok", dockerWhich.stdout);
   } else {
@@ -467,8 +478,10 @@ async function checkKubernetes() {
 // --- Reporting ---
 
 async function gatherSystemInfo(): Promise<string> {
-  const hostname = await exec(["coreutils", "hostname"]);
-  const uname = await exec(["coreutils", "uname", "-a"]);
+  const hostname = await exec(["hostname"]);
+  const uname = process.platform === "win32"
+    ? await exec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])
+    : await exec(["uname", "-a"]);
   const dockerVersion = await exec(["docker", "version", "--format", "{{.Server.Version}}"]);
   const kubeVersion = await exec(["kubectl", "version", "--short"]);
   const opsInfo = await exec(["ops", "-info"]);
@@ -518,8 +531,10 @@ async function gatherSystemInfo(): Promise<string> {
 
 async function fileReport(resultLabel: string) {
 
-  const hostname = (await exec(["coreutils", "hostname"])).stdout;
-  const uname = (await exec(["coreutils", "uname", "-a"])).stdout;
+  const hostname = (await exec(["hostname"])).stdout;
+  const uname = process.platform === "win32"
+    ? (await exec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])).stdout
+    : (await exec(["uname", "-a"])).stdout;
 
   const title = `${resultLabel} for ${hostname} running ${uname}`;
   const body = await gatherSystemInfo();

@@ -78,7 +78,7 @@ and there are those completed jobs:
 
 # Reporting
 
-After investigations,  ask the user if he wants to report problems or success filing an issue.
+After investigations,  ask the user if he wants to report problems or success filing an issue. Use the message "Would you like to file a report on GitHub to report Success/Failute"
 
 If the user confirms, open an an issue using
 https://nuvolaris.org/api/v1/web/landing/v1/issue
