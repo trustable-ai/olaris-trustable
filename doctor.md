@@ -85,6 +85,8 @@ and there are those completed jobs:
 
 # Reporting
 
+Save the entire report in a file `trustable-doctor.txt`. If the environment variable `$OPS_PWD` is set, save it in the `$OPS_PWD` folder; otherwise save it in the current directory. The report must include the system info, all check results, the logs of trustable-0, nuvolaris-operator-0, controller-0, and any anomaly logs (the same content that would be posted as GitHub issue and comments). Print the full path where the report was saved: `trustable doctor report saved in <full path>`.
+
 After investigations,  ask the user if he wants to report problems or success filing an issue. Use the message "Would you like to file a report on GitHub to report Success/Failute"
 
 If the user confirms, open an an issue using

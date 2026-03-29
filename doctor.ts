@@ -616,6 +616,54 @@ async function main() {
 
   console.log(`  ${GREEN}✓ ${oks} passed${RESET}  ${YELLOW}⚠ ${warns} warnings${RESET}  ${RED}✗ ${fails} failures${RESET}\n`);
 
+  // Save report to file
+  const reportLines: string[] = [
+    "Trustable Doctor Report",
+    "─".repeat(40),
+    "",
+  ];
+
+  // System info (same as GitHub issue body)
+  const systemInfo = await gatherSystemInfo();
+  reportLines.push(systemInfo);
+  reportLines.push("");
+  reportLines.push(`Summary: ${oks} passed, ${warns} warnings, ${fails} failures`);
+
+  // Key pod logs (same as GitHub comments)
+  reportLines.push("");
+  reportLines.push("Pod Logs");
+  reportLines.push("─".repeat(40));
+  for (const podName of ["trustable-0", "nuvolaris-operator-0", "controller-0"]) {
+    const logs = await exec(["kubectl", "logs", podName, "-n", NAMESPACE, "--tail=200"]);
+    if (logs.stdout) {
+      reportLines.push("");
+      reportLines.push(`# Logs of ${podName}`);
+      reportLines.push("```");
+      reportLines.push(logs.stdout);
+      reportLines.push("```");
+    }
+  }
+
+  // Anomaly logs
+  if (anomalyLogs.length > 0) {
+    reportLines.push("");
+    reportLines.push("Anomaly Details");
+    reportLines.push("─".repeat(40));
+    for (const { description, log } of anomalyLogs) {
+      reportLines.push("");
+      reportLines.push(`# ${description}`);
+      reportLines.push("```");
+      reportLines.push(log);
+      reportLines.push("```");
+    }
+  }
+
+  const { resolve } = await import("path");
+  const reportDir = process.env.OPS_PWD || ".";
+  const reportPath = resolve(reportDir, "trustable-doctor.txt");
+  await Bun.write(reportPath, reportLines.join("\n") + "\n");
+  console.log(`${GREEN}trustable doctor report saved in ${reportPath}${RESET}\n`);
+
   // Ask to report
   const resultLabel = fails > 0 ? "Failure" : "Success";
   const answer = await prompt(`Would you like to file a report on GitHub to report ${resultLabel}? (y/n)`);
