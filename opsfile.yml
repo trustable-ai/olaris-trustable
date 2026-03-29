@@ -114,3 +114,13 @@ tasks:
     silent: true
     cmds:
     - bun doctor.ts
+
+
+  restart:
+    desc: restart the cluster and ollama
+    silent: true
+    cmds:
+    - docker restart ollama
+    - docker restart nuvolaris-control-plane
+    - ops setup kubernetes post-deploy
+    - task: doctor
