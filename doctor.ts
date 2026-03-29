@@ -34,13 +34,17 @@ const EXPECTED_COMPLETED = [
 // --- Utilities ---
 
 async function exec(cmd: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const exitCode = await proc.exited;
-  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+  try {
+    const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    const exitCode = await proc.exited;
+    return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+  } catch (e: any) {
+    return { stdout: "", stderr: e.message || String(e), exitCode: -1 };
+  }
 }
 
 function matchesPattern(name: string, pattern: string): boolean {
@@ -148,46 +152,52 @@ async function checkPrereqs() {
   // Docker in path
   const whichCmd = process.platform === "win32" ? "where" : "which";
   const dockerWhich = await exec([whichCmd, "docker"]);
-  if (dockerWhich.exitCode === 0) {
+  const dockerInPath = dockerWhich.exitCode === 0;
+  if (dockerInPath) {
     record("Docker in PATH", "ok", dockerWhich.stdout);
   } else {
     record("Docker in PATH", "fail", "docker not found in PATH");
-    return; // Can't continue without docker
   }
 
   // Docker running
-  const dockerInfo = await exec(["docker", "info"]);
-  if (dockerInfo.exitCode === 0) {
-    record("Docker running", "ok", "Docker daemon is responsive");
-  } else {
-    record("Docker running", "fail", "Docker daemon not responding", dockerInfo.stderr);
-    return;
-  }
+  if (dockerInPath) {
+    const dockerInfo = await exec(["docker", "info"]);
+    if (dockerInfo.exitCode === 0) {
+      record("Docker running", "ok", "Docker daemon is responsive");
+    } else {
+      record("Docker running", "fail", "Docker daemon not responding", dockerInfo.stderr);
+    }
 
-  // Docker can pull and access internet
-  const curlTest = await exec([
-    "docker", "run", "--rm", "curlimages/curl", "-sI", "http://google.com",
-  ]);
-  if (curlTest.exitCode === 0 && curlTest.stdout.includes("Location")) {
-    record("Docker internet", "ok", "Can pull images and access internet");
-  } else {
-    record("Docker internet", "fail", "Cannot pull images or access internet", curlTest.stdout + curlTest.stderr);
-  }
+    // Docker can pull and access internet
+    const curlTest = await exec([
+      "docker", "run", "--rm", "curlimages/curl", "-sI", "http://google.com",
+    ]);
+    if (curlTest.exitCode === 0 && curlTest.stdout.includes("Location")) {
+      record("Docker internet", "ok", "Can pull images and access internet");
+    } else {
+      record("Docker internet", "fail", "Cannot pull images or access internet", curlTest.stdout + curlTest.stderr);
+    }
 
-  // Ollama container running
-  const ollamaContainer = await exec(["docker", "ps", "--filter", "name=ollama", "--format", "{{.Names}}"]);
-  if (ollamaContainer.stdout.includes("ollama")) {
-    record("Ollama container", "ok", "Running");
-  } else {
-    record("Ollama container", "fail", "ollama container not running");
-  }
+    // Ollama container running
+    const ollamaContainer = await exec(["docker", "ps", "--filter", "name=ollama", "--format", "{{.Names}}"]);
+    if (ollamaContainer.stdout.includes("ollama")) {
+      record("Ollama container", "ok", "Running");
+    } else {
+      record("Ollama container", "fail", "ollama container not running");
+    }
 
-  // nuvolaris-control-plane container running
-  const cpContainer = await exec(["docker", "ps", "--filter", "name=nuvolaris-control-plane", "--format", "{{.Names}}"]);
-  if (cpContainer.stdout.includes("nuvolaris-control-plane")) {
-    record("Control plane container", "ok", "Running");
+    // nuvolaris-control-plane container running
+    const cpContainer = await exec(["docker", "ps", "--filter", "name=nuvolaris-control-plane", "--format", "{{.Names}}"]);
+    if (cpContainer.stdout.includes("nuvolaris-control-plane")) {
+      record("Control plane container", "ok", "Running");
+    } else {
+      record("Control plane container", "fail", "nuvolaris-control-plane container not running");
+    }
   } else {
-    record("Control plane container", "fail", "nuvolaris-control-plane container not running");
+    record("Docker running", "fail", "Skipped (docker not in PATH)");
+    record("Docker internet", "fail", "Skipped (docker not in PATH)");
+    record("Ollama container", "fail", "Skipped (docker not in PATH)");
+    record("Control plane container", "fail", "Skipped (docker not in PATH)");
   }
 }
 
@@ -199,18 +209,22 @@ async function checkPorts() {
   // DNS checks
   const hosts = ["miniops.me", "trustable.miniops.me", "opencode.miniops.me", "vite.miniops.me"];
   for (const host of hosts) {
-    let resolved = "";
-    if (process.platform === "win32") {
-      const { stdout, exitCode } = await exec(["powershell", "-Command", `(Resolve-DnsName ${host} -Type A -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress`]);
-      if (exitCode === 0) resolved = stdout.trim();
-    } else {
-      const { stdout, exitCode } = await exec(["sh", "-c", `dig +short ${host} | head -1`]);
-      if (exitCode === 0) resolved = stdout.trim();
-    }
-    if (resolved === "127.0.0.1") {
-      record(`DNS ${host}`, "ok", "resolves to 127.0.0.1");
-    } else {
-      record(`DNS ${host}`, "fail", `resolves to '${resolved}' (expected 127.0.0.1)`);
+    try {
+      let resolved = "";
+      if (process.platform === "win32") {
+        const { stdout, exitCode } = await exec(["powershell", "-Command", `(Resolve-DnsName ${host} -Type A -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress`]);
+        if (exitCode === 0) resolved = stdout.trim();
+      } else {
+        const { stdout, exitCode } = await exec(["sh", "-c", `dig +short ${host} | head -1`]);
+        if (exitCode === 0) resolved = stdout.trim();
+      }
+      if (resolved === "127.0.0.1") {
+        record(`DNS ${host}`, "ok", "resolves to 127.0.0.1");
+      } else {
+        record(`DNS ${host}`, "fail", `resolves to '${resolved}' (expected 127.0.0.1)`);
+      }
+    } catch (e: any) {
+      record(`DNS ${host}`, "fail", `DNS check error: ${e.message}`);
     }
   }
 
@@ -283,7 +297,6 @@ async function checkKubernetes() {
     record("Node", "ok", "nuvolaris-control-plane found");
   } else {
     record("Node", "fail", `nuvolaris-control-plane not found. Nodes: ${nodes.stdout}`);
-    return;
   }
 
   // Namespace check
@@ -292,20 +305,23 @@ async function checkKubernetes() {
     record("Namespace", "ok", `${NAMESPACE} exists`);
   } else {
     record("Namespace", "fail", `${NAMESPACE} namespace not found`);
-    return;
   }
 
   // Get all pods
   const podsJson = await exec([
     "kubectl", "get", "pods", "-n", NAMESPACE, "-o", "json",
   ]);
+  let podList: any[] = [];
   if (podsJson.exitCode !== 0) {
     record("Pods", "fail", "Cannot list pods", podsJson.stderr);
-    return;
+  } else {
+    try {
+      const pods = JSON.parse(podsJson.stdout);
+      podList = pods.items || [];
+    } catch (e: any) {
+      record("Pods", "fail", `Cannot parse pod list: ${e.message}`);
+    }
   }
-
-  const pods = JSON.parse(podsJson.stdout);
-  const podList: any[] = pods.items;
   const podNames = podList.map((p: any) => p.metadata.name);
 
   // Check expected running pods
@@ -347,134 +363,142 @@ async function checkKubernetes() {
   let anomalyCount = 0;
 
   for (const pod of podList) {
-    const name = pod.metadata.name;
-    const phase = pod.status.phase;
-    const conditions = pod.status.conditions || [];
-    const containerStatuses = [
-      ...(pod.status.containerStatuses || []),
-      ...(pod.status.initContainerStatuses || []),
-    ];
+    try {
+      const name = pod.metadata.name;
+      const phase = pod.status.phase;
+      const conditions = pod.status.conditions || [];
+      const containerStatuses = [
+        ...(pod.status.containerStatuses || []),
+        ...(pod.status.initContainerStatuses || []),
+      ];
 
-    const anomalies: string[] = [];
+      const anomalies: string[] = [];
 
-    // Phase anomalies
-    if (phase === "Pending") anomalies.push("Pending");
-    if (phase === "Failed") anomalies.push("Failed");
-    if (phase === "Unknown") anomalies.push("Unknown");
+      // Phase anomalies
+      if (phase === "Pending") anomalies.push("Pending");
+      if (phase === "Failed") anomalies.push("Failed");
+      if (phase === "Unknown") anomalies.push("Unknown");
 
-    // Evicted
-    if (pod.status.reason === "Evicted") anomalies.push("Evicted");
+      // Evicted
+      if (pod.status.reason === "Evicted") anomalies.push("Evicted");
 
-    // Terminating (has deletionTimestamp)
-    if (pod.metadata.deletionTimestamp) anomalies.push("Terminating");
+      // Terminating (has deletionTimestamp)
+      if (pod.metadata.deletionTimestamp) anomalies.push("Terminating");
 
-    // Not Ready (running but not ready)
-    if (phase === "Running") {
-      const readyCond = conditions.find((c: any) => c.type === "Ready");
-      if (readyCond && readyCond.status === "False") anomalies.push("Not Ready");
-    }
-
-    // Container-level anomalies
-    for (const cs of containerStatuses) {
-      const waiting = cs.state?.waiting;
-      const terminated = cs.state?.terminated;
-
-      if (waiting?.reason === "CrashLoopBackOff") anomalies.push("CrashLoopBackOff");
-      if (waiting?.reason === "ImagePullBackOff") anomalies.push("ImagePullBackOff");
-      if (waiting?.reason === "ErrImagePull") anomalies.push("ErrImagePull");
-      if (waiting?.reason === "CreateContainerConfigError") anomalies.push("CreateContainerConfigError");
-      if (terminated?.reason === "OOMKilled") anomalies.push("OOMKilled");
-      if (terminated?.reason === "Error") anomalies.push("Error");
-
-      // Restart count
-      if (cs.restartCount > 0 && phase === "Running") {
-        anomalies.push(`Restarts(${cs.restartCount})`);
+      // Not Ready (running but not ready)
+      if (phase === "Running") {
+        const readyCond = conditions.find((c: any) => c.type === "Ready");
+        if (readyCond && readyCond.status === "False") anomalies.push("Not Ready");
       }
-    }
 
-    if (anomalies.length === 0) continue;
-    anomalyCount++;
+      // Container-level anomalies
+      for (const cs of containerStatuses) {
+        const waiting = cs.state?.waiting;
+        const terminated = cs.state?.terminated;
 
-    const anomalyStr = anomalies.join(", ");
-    record(`Anomaly ${name}`, anomalies.some(a => ["CrashLoopBackOff", "Failed", "OOMKilled", "Error", "Evicted"].includes(a)) ? "fail" : "warn", anomalyStr);
+        if (waiting?.reason === "CrashLoopBackOff") anomalies.push("CrashLoopBackOff");
+        if (waiting?.reason === "ImagePullBackOff") anomalies.push("ImagePullBackOff");
+        if (waiting?.reason === "ErrImagePull") anomalies.push("ErrImagePull");
+        if (waiting?.reason === "CreateContainerConfigError") anomalies.push("CreateContainerConfigError");
+        if (terminated?.reason === "OOMKilled") anomalies.push("OOMKilled");
+        if (terminated?.reason === "Error") anomalies.push("Error");
 
-    // Gather details per anomaly type
-    for (const anomaly of anomalies) {
-      if (anomaly === "ImagePullBackOff" || anomaly === "ErrImagePull") {
-        const cs = containerStatuses.find((c: any) => c.state?.waiting?.reason === anomaly);
-        const image = cs?.image || "unknown";
-        record(`  Image pull`, "fail", `Cannot pull: ${image}`);
-        const pull = await exec(["docker", "pull", image]);
-        if (pull.exitCode === 0) {
-          record(`  Docker pull`, "ok", `Pulled ${image} successfully`);
-        } else {
-          record(`  Docker pull`, "fail", `Failed to pull ${image}`, pull.stderr);
+        // Restart count
+        if (cs.restartCount > 0 && phase === "Running") {
+          anomalies.push(`Restarts(${cs.restartCount})`);
         }
-        anomalyLogs.push({ description: `ImagePull details for ${name}`, log: `Image: ${image}\n${pull.stdout}\n${pull.stderr}` });
       }
 
-      if (anomaly === "CrashLoopBackOff") {
-        const logs = await exec(["kubectl", "logs", name, "-n", NAMESPACE, "--previous", "--tail=100"]);
-        anomalyLogs.push({ description: `CrashLoopBackOff logs for ${name}`, log: logs.stdout || logs.stderr });
-        record(`  Previous logs`, "fail", `Extracted for ${name}`, (logs.stdout || logs.stderr).split("\n").slice(-3).join("\n"));
-      }
+      if (anomalies.length === 0) continue;
+      anomalyCount++;
 
-      if (anomaly === "CreateContainerConfigError") {
-        const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
-        anomalyLogs.push({ description: `CreateContainerConfigError for ${name}`, log: describe.stdout });
-        record(`  Config error`, "fail", `Described ${name}`, describe.stdout.split("\n").slice(-5).join("\n"));
-      }
+      const anomalyStr = anomalies.join(", ");
+      record(`Anomaly ${name}`, anomalies.some(a => ["CrashLoopBackOff", "Failed", "OOMKilled", "Error", "Evicted"].includes(a)) ? "fail" : "warn", anomalyStr);
 
-      if (anomaly === "OOMKilled") {
-        const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
-        const resourceLines = describe.stdout.split("\n").filter((l: string) => l.match(/memory|limits|requests|OOMKilled/i));
-        anomalyLogs.push({ description: `OOMKilled details for ${name}`, log: resourceLines.join("\n") });
-        record(`  OOMKilled`, "fail", `Memory limits for ${name}`, resourceLines.slice(0, 3).join("\n"));
-      }
+      // Gather details per anomaly type
+      for (const anomaly of anomalies) {
+        try {
+          if (anomaly === "ImagePullBackOff" || anomaly === "ErrImagePull") {
+            const cs = containerStatuses.find((c: any) => c.state?.waiting?.reason === anomaly);
+            const image = cs?.image || "unknown";
+            record(`  Image pull`, "fail", `Cannot pull: ${image}`);
+            const pull = await exec(["docker", "pull", image]);
+            if (pull.exitCode === 0) {
+              record(`  Docker pull`, "ok", `Pulled ${image} successfully`);
+            } else {
+              record(`  Docker pull`, "fail", `Failed to pull ${image}`, pull.stderr);
+            }
+            anomalyLogs.push({ description: `ImagePull details for ${name}`, log: `Image: ${image}\n${pull.stdout}\n${pull.stderr}` });
+          }
 
-      if (anomaly === "Pending") {
-        const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
-        const events = describe.stdout.split("Events:")[1] || "";
-        anomalyLogs.push({ description: `Pending details for ${name}`, log: events });
-        record(`  Scheduling`, "warn", `Pending details for ${name}`, events.split("\n").slice(0, 5).join("\n"));
-      }
+          if (anomaly === "CrashLoopBackOff") {
+            const logs = await exec(["kubectl", "logs", name, "-n", NAMESPACE, "--previous", "--tail=100"]);
+            anomalyLogs.push({ description: `CrashLoopBackOff logs for ${name}`, log: logs.stdout || logs.stderr });
+            record(`  Previous logs`, "fail", `Extracted for ${name}`, (logs.stdout || logs.stderr).split("\n").slice(-3).join("\n"));
+          }
 
-      if (anomaly === "Failed" || anomaly === "Error") {
-        const logs = await exec(["kubectl", "logs", name, "-n", NAMESPACE, "--tail=100"]);
-        anomalyLogs.push({ description: `${anomaly} logs for ${name}`, log: logs.stdout || logs.stderr });
-        record(`  ${anomaly} logs`, "fail", `Extracted for ${name}`, (logs.stdout || logs.stderr).split("\n").slice(-3).join("\n"));
-      }
+          if (anomaly === "CreateContainerConfigError") {
+            const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
+            anomalyLogs.push({ description: `CreateContainerConfigError for ${name}`, log: describe.stdout });
+            record(`  Config error`, "fail", `Described ${name}`, describe.stdout.split("\n").slice(-5).join("\n"));
+          }
 
-      if (anomaly === "Evicted") {
-        const reason = pod.status.message || pod.status.reason || "Unknown";
-        anomalyLogs.push({ description: `Evicted details for ${name}`, log: reason });
-        record(`  Evicted`, "fail", reason);
-      }
+          if (anomaly === "OOMKilled") {
+            const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
+            const resourceLines = describe.stdout.split("\n").filter((l: string) => l.match(/memory|limits|requests|OOMKilled/i));
+            anomalyLogs.push({ description: `OOMKilled details for ${name}`, log: resourceLines.join("\n") });
+            record(`  OOMKilled`, "fail", `Memory limits for ${name}`, resourceLines.slice(0, 3).join("\n"));
+          }
 
-      if (anomaly === "Not Ready") {
-        const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
-        const readinessLines = describe.stdout.split("\n").filter((l: string) => l.match(/readiness|ready|probe/i));
-        const events = describe.stdout.split("Events:")[1] || "";
-        anomalyLogs.push({ description: `Not Ready details for ${name}`, log: readinessLines.join("\n") + "\n" + events });
-        record(`  Not Ready`, "warn", `Readiness probe details for ${name}`, readinessLines.slice(0, 3).join("\n"));
-      }
+          if (anomaly === "Pending") {
+            const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
+            const events = describe.stdout.split("Events:")[1] || "";
+            anomalyLogs.push({ description: `Pending details for ${name}`, log: events });
+            record(`  Scheduling`, "warn", `Pending details for ${name}`, events.split("\n").slice(0, 5).join("\n"));
+          }
 
-      if (anomaly.startsWith("Restarts(")) {
-        const cs = containerStatuses.find((c: any) => c.restartCount > 0);
-        const lastTermination = cs?.lastState?.terminated;
-        const reason = lastTermination?.reason || "Unknown";
-        const exitCode = lastTermination?.exitCode ?? "?";
-        record(`  Restarts`, "warn", `${name}: ${anomaly}, last exit: ${reason} (code ${exitCode})`);
-        anomalyLogs.push({ description: `Restart details for ${name}`, log: `Restart count: ${cs?.restartCount}, Last termination: ${reason}, Exit code: ${exitCode}` });
-      }
+          if (anomaly === "Failed" || anomaly === "Error") {
+            const logs = await exec(["kubectl", "logs", name, "-n", NAMESPACE, "--tail=100"]);
+            anomalyLogs.push({ description: `${anomaly} logs for ${name}`, log: logs.stdout || logs.stderr });
+            record(`  ${anomaly} logs`, "fail", `Extracted for ${name}`, (logs.stdout || logs.stderr).split("\n").slice(-3).join("\n"));
+          }
 
-      if (anomaly === "Terminating") {
-        const since = pod.metadata.deletionTimestamp;
-        const finalizers = pod.metadata.finalizers || [];
-        const msg = `Since: ${since}, Finalizers: ${finalizers.join(", ") || "none"}`;
-        anomalyLogs.push({ description: `Terminating details for ${name}`, log: msg });
-        record(`  Terminating`, "warn", msg);
+          if (anomaly === "Evicted") {
+            const reason = pod.status.message || pod.status.reason || "Unknown";
+            anomalyLogs.push({ description: `Evicted details for ${name}`, log: reason });
+            record(`  Evicted`, "fail", reason);
+          }
+
+          if (anomaly === "Not Ready") {
+            const describe = await exec(["kubectl", "describe", "pod", name, "-n", NAMESPACE]);
+            const readinessLines = describe.stdout.split("\n").filter((l: string) => l.match(/readiness|ready|probe/i));
+            const events = describe.stdout.split("Events:")[1] || "";
+            anomalyLogs.push({ description: `Not Ready details for ${name}`, log: readinessLines.join("\n") + "\n" + events });
+            record(`  Not Ready`, "warn", `Readiness probe details for ${name}`, readinessLines.slice(0, 3).join("\n"));
+          }
+
+          if (anomaly.startsWith("Restarts(")) {
+            const cs = containerStatuses.find((c: any) => c.restartCount > 0);
+            const lastTermination = cs?.lastState?.terminated;
+            const reason = lastTermination?.reason || "Unknown";
+            const exitCode = lastTermination?.exitCode ?? "?";
+            record(`  Restarts`, "warn", `${name}: ${anomaly}, last exit: ${reason} (code ${exitCode})`);
+            anomalyLogs.push({ description: `Restart details for ${name}`, log: `Restart count: ${cs?.restartCount}, Last termination: ${reason}, Exit code: ${exitCode}` });
+          }
+
+          if (anomaly === "Terminating") {
+            const since = pod.metadata.deletionTimestamp;
+            const finalizers = pod.metadata.finalizers || [];
+            const msg = `Since: ${since}, Finalizers: ${finalizers.join(", ") || "none"}`;
+            anomalyLogs.push({ description: `Terminating details for ${name}`, log: msg });
+            record(`  Terminating`, "warn", msg);
+          }
+        } catch (e: any) {
+          record(`  ${anomaly} details`, "warn", `Could not gather details: ${e.message}`);
+        }
       }
+    } catch (e: any) {
+      record(`Anomaly check`, "warn", `Error inspecting pod: ${e.message}`);
     }
   }
 
@@ -485,14 +509,19 @@ async function checkKubernetes() {
 
 // --- Reporting ---
 
+async function safeExec(cmd: string[], fallback = "N/A"): Promise<string> {
+  const result = await exec(cmd);
+  return result.exitCode === 0 ? result.stdout : fallback;
+}
+
 async function gatherSystemInfo(): Promise<string> {
-  const hostname = await exec(["hostname"]);
+  const hostname = await safeExec(["hostname"]);
   const uname = process.platform === "win32"
-    ? await exec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])
-    : await exec(["uname", "-a"]);
-  const dockerVersion = await exec(["docker", "version", "--format", "{{.Server.Version}}"]);
-  const kubeVersion = await exec(["kubectl", "version", "--short"]);
-  const opsInfo = await exec(["ops", "-info"]);
+    ? await safeExec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])
+    : await safeExec(["uname", "-a"]);
+  const dockerVersion = await safeExec(["docker", "version", "--format", "{{.Server.Version}}"]);
+  const kubeVersion = await safeExec(["kubectl", "version", "--short"]);
+  const opsInfo = await safeExec(["ops", "-info"]);
 
   let opsroot = "";
   try {
@@ -505,14 +534,14 @@ async function gatherSystemInfo(): Promise<string> {
 
   const lines = [
     `## System Info`,
-    `- **Hostname**: ${hostname.stdout}`,
-    `- **OS**: ${uname.stdout}`,
-    `- **Docker version**: ${dockerVersion.stdout}`,
-    `- **Kubernetes version**: ${kubeVersion.stdout.replace(/\n/g, ", ")}`,
+    `- **Hostname**: ${hostname}`,
+    `- **OS**: ${uname}`,
+    `- **Docker version**: ${dockerVersion}`,
+    `- **Kubernetes version**: ${kubeVersion.replace(/\n/g, ", ")}`,
     ``,
     `## ops -info`,
     "```",
-    opsInfo.stdout,
+    opsInfo,
     "```",
     ``,
     `## Trustable Images (opsroot.json)`,
@@ -539,10 +568,10 @@ async function gatherSystemInfo(): Promise<string> {
 
 async function fileReport(resultLabel: string) {
 
-  const hostname = (await exec(["hostname"])).stdout;
+  const hostname = await safeExec(["hostname"]);
   const uname = process.platform === "win32"
-    ? (await exec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])).stdout
-    : (await exec(["uname", "-a"])).stdout;
+    ? await safeExec(["powershell", "-Command", "[System.Environment]::OSVersion.VersionString"])
+    : await safeExec(["uname", "-a"]);
 
   const title = `${resultLabel} for ${hostname} running ${uname}`;
   const body = await gatherSystemInfo();
@@ -600,23 +629,11 @@ async function fileReport(resultLabel: string) {
 
 // --- Main ---
 
-async function main() {
-  console.log(`${BOLD}${CYAN}Trustable Doctor${RESET}`);
-  console.log(`${"─".repeat(40)}`);
-
-  await checkPrereqs();
-  await checkPorts();
-  await checkKubernetes();
-
-  // Summary
-  console.log(`\n${BOLD}# Summary${RESET}\n`);
+async function saveReport() {
   const fails = results.filter(r => r.severity === "fail").length;
   const warns = results.filter(r => r.severity === "warn").length;
   const oks = results.filter(r => r.severity === "ok").length;
 
-  console.log(`  ${GREEN}✓ ${oks} passed${RESET}  ${YELLOW}⚠ ${warns} warnings${RESET}  ${RED}✗ ${fails} failures${RESET}\n`);
-
-  // Save report to file
   const reportLines: string[] = [
     "Trustable Doctor Report",
     "─".repeat(40),
@@ -624,8 +641,12 @@ async function main() {
   ];
 
   // System info (same as GitHub issue body)
-  const systemInfo = await gatherSystemInfo();
-  reportLines.push(systemInfo);
+  try {
+    const systemInfo = await gatherSystemInfo();
+    reportLines.push(systemInfo);
+  } catch (e: any) {
+    reportLines.push(`(Could not gather system info: ${e.message})`);
+  }
   reportLines.push("");
   reportLines.push(`Summary: ${oks} passed, ${warns} warnings, ${fails} failures`);
 
@@ -634,13 +655,19 @@ async function main() {
   reportLines.push("Pod Logs");
   reportLines.push("─".repeat(40));
   for (const podName of ["trustable-0", "nuvolaris-operator-0", "controller-0"]) {
-    const logs = await exec(["kubectl", "logs", podName, "-n", NAMESPACE, "--tail=200"]);
-    if (logs.stdout) {
+    try {
+      const logs = await exec(["kubectl", "logs", podName, "-n", NAMESPACE, "--tail=200"]);
+      if (logs.stdout) {
+        reportLines.push("");
+        reportLines.push(`# Logs of ${podName}`);
+        reportLines.push("```");
+        reportLines.push(logs.stdout);
+        reportLines.push("```");
+      }
+    } catch (e: any) {
       reportLines.push("");
       reportLines.push(`# Logs of ${podName}`);
-      reportLines.push("```");
-      reportLines.push(logs.stdout);
-      reportLines.push("```");
+      reportLines.push(`(Could not retrieve logs: ${e.message})`);
     }
   }
 
@@ -663,14 +690,50 @@ async function main() {
   const reportPath = resolve(reportDir, "trustable-doctor.txt");
   await Bun.write(reportPath, reportLines.join("\n") + "\n");
   console.log(`${GREEN}trustable doctor report saved in ${reportPath}${RESET}\n`);
+}
+
+async function main() {
+  console.log(`${BOLD}${CYAN}Trustable Doctor${RESET}`);
+  console.log(`${"─".repeat(40)}`);
+
+  try { await checkPrereqs(); } catch (e: any) {
+    record("Prerequisites", "fail", `Section crashed: ${e.message}`);
+  }
+
+  try { await checkPorts(); } catch (e: any) {
+    record("Ports", "fail", `Section crashed: ${e.message}`);
+  }
+
+  try { await checkKubernetes(); } catch (e: any) {
+    record("Kubernetes", "fail", `Section crashed: ${e.message}`);
+  }
+
+  // Summary
+  console.log(`\n${BOLD}# Summary${RESET}\n`);
+  const fails = results.filter(r => r.severity === "fail").length;
+  const warns = results.filter(r => r.severity === "warn").length;
+  const oks = results.filter(r => r.severity === "ok").length;
+
+  console.log(`  ${GREEN}✓ ${oks} passed${RESET}  ${YELLOW}⚠ ${warns} warnings${RESET}  ${RED}✗ ${fails} failures${RESET}\n`);
+
+  // Always save the report, even if something went wrong
+  try {
+    await saveReport();
+  } catch (e: any) {
+    console.error(`${RED}Failed to save report file: ${e.message}${RESET}`);
+  }
 
   // Ask to report
-  const resultLabel = fails > 0 ? "Failure" : "Success";
-  const answer = await prompt(`Would you like to file a report on GitHub to report ${resultLabel}? (y/n)`);
-  if (answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
-    await fileReport(resultLabel);
-  } else {
-    console.log("Skipping report.");
+  try {
+    const resultLabel = fails > 0 ? "Failure" : "Success";
+    const answer = await prompt(`Would you like to file a report on GitHub to report ${resultLabel}? (y/n)`);
+    if (answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
+      await fileReport(resultLabel);
+    } else {
+      console.log("Skipping report.");
+    }
+  } catch (e: any) {
+    console.error(`${RED}Failed to file report: ${e.message}${RESET}`);
   }
 }
 

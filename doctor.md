@@ -2,7 +2,9 @@ Create the file doctor.ts run by bun, as a file with no dependencies,
 uses docker and kubectl on the path.
 Must work cross-platform on macOS, Linux and Windows.
 
-perform the following checks to detect errors
+The doctor must be resilient to failures: every individual check must be wrapped so that if it throws or times out, the error is recorded and the doctor continues with the remaining checks. The report file must always be produced, even if most checks fail. Never abort early — record the failure and move on.
+
+Perform the following checks to detect errors
 and provide detailed informations on the errors
 
 # Prereq
