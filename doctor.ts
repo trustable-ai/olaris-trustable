@@ -331,8 +331,29 @@ async function checkKubernetes() {
     if (found) {
       const pod = podList.find((p: any) => p.metadata.name === found);
       const phase = pod.status.phase;
-      if (phase === "Running") {
+      const containerStatuses = [
+        ...(pod.status.containerStatuses || []),
+        ...(pod.status.initContainerStatuses || []),
+      ];
+      // Check for container-level problems even when phase is "Running"
+      const crashingContainer = containerStatuses.find(
+        (cs: any) => cs.state?.waiting?.reason === "CrashLoopBackOff"
+      );
+      const errorWaiting = containerStatuses.find(
+        (cs: any) => cs.state?.waiting && cs.state.waiting.reason !== "ContainerCreating"
+      );
+      const highRestarts = containerStatuses.find(
+        (cs: any) => cs.restartCount > 3
+      );
+
+      if (phase === "Running" && !crashingContainer && !errorWaiting && !highRestarts) {
         record(`Pod ${pattern}`, "ok", `${found} is Running`);
+      } else if (crashingContainer) {
+        record(`Pod ${pattern}`, "fail", `${found} is CrashLoopBackOff (phase: ${phase})`);
+      } else if (errorWaiting) {
+        record(`Pod ${pattern}`, "fail", `${found} has container waiting: ${errorWaiting.state.waiting.reason}`);
+      } else if (highRestarts) {
+        record(`Pod ${pattern}`, "warn", `${found} is ${phase} but has ${highRestarts.restartCount} restarts`);
       } else {
         record(`Pod ${pattern}`, "fail", `${found} is ${phase} (expected Running)`);
       }
