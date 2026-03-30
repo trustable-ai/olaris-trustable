@@ -161,37 +161,56 @@ async function checkPrereqs() {
 
   // Docker running
   if (dockerInPath) {
-    const dockerInfo = await exec(["docker", "info"]);
-    if (dockerInfo.exitCode === 0) {
-      record("Docker running", "ok", "Docker daemon is responsive");
-    } else {
-      record("Docker running", "fail", "Docker daemon not responding", dockerInfo.stderr);
+    try {
+      const dockerInfo = await exec(["docker", "info"]);
+      if (dockerInfo.exitCode === 0) {
+        record("Docker running", "ok", "Docker daemon is responsive");
+      } else {
+        record("Docker running", "fail", "Docker daemon not responding", dockerInfo.stderr);
+      }
+    } catch (e: any) {
+      record("Docker running", "fail", `Check error: ${e.message}`);
     }
 
-    // Docker can pull and access internet
-    const curlTest = await exec([
-      "docker", "run", "--rm", "curlimages/curl", "-sI", "http://google.com",
-    ]);
-    if (curlTest.exitCode === 0 && curlTest.stdout.includes("Location")) {
-      record("Docker internet", "ok", "Can pull images and access internet");
-    } else {
-      record("Docker internet", "fail", "Cannot pull images or access internet", curlTest.stdout + curlTest.stderr);
+    try {
+      // Docker can pull and access internet
+      const curlTest = await exec([
+        "docker", "run", "--rm", "curlimages/curl", "-si", "http://google.com",
+      ]);
+      const hasHtml = /<html/i.test(curlTest.stdout);
+      const hasLocation = /Location:/i.test(curlTest.stdout);
+      if (curlTest.exitCode === 0 && hasHtml && hasLocation) {
+        record("Docker internet", "ok", "Can pull images and access internet");
+      } else {
+        const detail = !hasHtml ? "No HTML in response" : !hasLocation ? "No Location redirect" : "curl failed";
+        record("Docker internet", "fail", `Cannot pull images or access internet: ${detail}`, curlTest.stdout + curlTest.stderr);
+      }
+    } catch (e: any) {
+      record("Docker internet", "fail", `Check error: ${e.message}`);
     }
 
-    // Ollama container running
-    const ollamaContainer = await exec(["docker", "ps", "--filter", "name=ollama", "--format", "{{.Names}}"]);
-    if (ollamaContainer.stdout.includes("ollama")) {
-      record("Ollama container", "ok", "Running");
-    } else {
-      record("Ollama container", "fail", "ollama container not running");
+    try {
+      // Ollama container running
+      const ollamaContainer = await exec(["docker", "ps", "--filter", "name=ollama", "--format", "{{.Names}}"]);
+      if (ollamaContainer.stdout.includes("ollama")) {
+        record("Ollama container", "ok", "Running");
+      } else {
+        record("Ollama container", "fail", "ollama container not running");
+      }
+    } catch (e: any) {
+      record("Ollama container", "fail", `Check error: ${e.message}`);
     }
 
-    // nuvolaris-control-plane container running
-    const cpContainer = await exec(["docker", "ps", "--filter", "name=nuvolaris-control-plane", "--format", "{{.Names}}"]);
-    if (cpContainer.stdout.includes("nuvolaris-control-plane")) {
-      record("Control plane container", "ok", "Running");
-    } else {
-      record("Control plane container", "fail", "nuvolaris-control-plane container not running");
+    try {
+      // nuvolaris-control-plane container running
+      const cpContainer = await exec(["docker", "ps", "--filter", "name=nuvolaris-control-plane", "--format", "{{.Names}}"]);
+      if (cpContainer.stdout.includes("nuvolaris-control-plane")) {
+        record("Control plane container", "ok", "Running");
+      } else {
+        record("Control plane container", "fail", "nuvolaris-control-plane container not running");
+      }
+    } catch (e: any) {
+      record("Control plane container", "fail", `Check error: ${e.message}`);
     }
   } else {
     record("Docker running", "fail", "Skipped (docker not in PATH)");
@@ -256,30 +275,36 @@ async function checkPorts() {
 
   // SSH check on port 2222
   try {
+    let bannerRecorded = false;
     const socket = await Bun.connect({
       hostname: "localhost",
       port: 2222,
       socket: {
-        data(socket, data) {},
-        open(socket) {},
-        close(socket) {},
-        error(socket, error) {},
+        data(_socket: any, data: any) {
+          if (bannerRecorded) return;
+          bannerRecorded = true;
+          const text = new TextDecoder().decode(data);
+          if (text.startsWith("SSH")) {
+            record("SSH port 2222", "ok", text.split("\n")[0]);
+          } else {
+            record("SSH port 2222", "fail", `Unexpected banner: ${text.slice(0, 50)}`);
+          }
+        },
+        open(_socket: any) {},
+        close(_socket: any) {},
+        error(_socket: any, _error: any) {},
       },
     });
-    // Read initial banner
+    // Wait for banner or timeout
     await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => resolve(), 3000);
-      socket.data = (s: any, data: Buffer) => {
-        const text = new TextDecoder().decode(data);
-        if (text.startsWith("SSH")) {
-          record("SSH port 2222", "ok", text.split("\n")[0]);
-        } else {
-          record("SSH port 2222", "fail", `Unexpected banner: ${text.slice(0, 50)}`);
-        }
-        clearTimeout(timeout);
-        resolve();
-      };
+      const check = setInterval(() => {
+        if (bannerRecorded) { clearInterval(check); resolve(); }
+      }, 100);
+      setTimeout(() => { clearInterval(check); resolve(); }, 3000);
     });
+    if (!bannerRecorded) {
+      record("SSH port 2222", "fail", "No SSH banner received within 3s");
+    }
     socket.end();
   } catch (e: any) {
     record("SSH port 2222", "fail", `Cannot connect: ${e.message}`);
@@ -323,6 +348,20 @@ async function checkKubernetes() {
     }
   }
   const podNames = podList.map((p: any) => p.metadata.name);
+
+  // Check all pods are Running or Completed
+  if (podList.length > 0) {
+    const badPods = podList.filter((p: any) => {
+      const phase = p.status.phase;
+      return phase !== "Running" && phase !== "Succeeded";
+    });
+    if (badPods.length === 0) {
+      record("All pods status", "ok", "All pods are Running or Completed");
+    } else {
+      const summary = badPods.map((p: any) => `${p.metadata.name} (${p.status.phase})`).join(", ");
+      record("All pods status", "fail", `Pods not Running/Completed: ${summary}`);
+    }
+  }
 
   // Check expected running pods
   console.log(`\n${BOLD}  Expected Running Pods${RESET}\n`);
@@ -423,11 +462,6 @@ async function checkKubernetes() {
         if (waiting?.reason === "CreateContainerConfigError") anomalies.push("CreateContainerConfigError");
         if (terminated?.reason === "OOMKilled") anomalies.push("OOMKilled");
         if (terminated?.reason === "Error") anomalies.push("Error");
-
-        // Restart count
-        if (cs.restartCount > 0 && phase === "Running") {
-          anomalies.push(`Restarts(${cs.restartCount})`);
-        }
       }
 
       if (anomalies.length === 0) continue;
@@ -498,15 +532,6 @@ async function checkKubernetes() {
             record(`  Not Ready`, "warn", `Readiness probe details for ${name}`, readinessLines.slice(0, 3).join("\n"));
           }
 
-          if (anomaly.startsWith("Restarts(")) {
-            const cs = containerStatuses.find((c: any) => c.restartCount > 0);
-            const lastTermination = cs?.lastState?.terminated;
-            const reason = lastTermination?.reason || "Unknown";
-            const exitCode = lastTermination?.exitCode ?? "?";
-            record(`  Restarts`, "warn", `${name}: ${anomaly}, last exit: ${reason} (code ${exitCode})`);
-            anomalyLogs.push({ description: `Restart details for ${name}`, log: `Restart count: ${cs?.restartCount}, Last termination: ${reason}, Exit code: ${exitCode}` });
-          }
-
           if (anomaly === "Terminating") {
             const since = pod.metadata.deletionTimestamp;
             const finalizers = pod.metadata.finalizers || [];
@@ -525,6 +550,26 @@ async function checkKubernetes() {
 
   if (anomalyCount === 0) {
     record("Anomalies", "ok", "No anomalies detected");
+  }
+
+  // Restart count informational note (not an anomaly)
+  const restartedPods: { name: string; restarts: number }[] = [];
+  for (const pod of podList) {
+    const allStatuses = [
+      ...(pod.status?.containerStatuses || []),
+      ...(pod.status?.initContainerStatuses || []),
+    ];
+    for (const cs of allStatuses) {
+      if (cs.restartCount > 0) {
+        restartedPods.push({ name: pod.metadata.name, restarts: cs.restartCount });
+        break;
+      }
+    }
+  }
+  if (restartedPods.length > 0) {
+    const totalRestarts = restartedPods.reduce((sum, p) => sum + p.restarts, 0);
+    const listing = restartedPods.map(p => `${p.name}: ${p.restarts}`).join(", ");
+    record("Restart note", "warn", `Found ${totalRestarts} restarts: ${listing}`);
   }
 }
 
@@ -747,7 +792,7 @@ async function main() {
   // Ask to report
   try {
     const resultLabel = fails > 0 ? "Failure" : "Success";
-    const answer = await prompt(`Would you like to file a report on GitHub to report ${resultLabel}? (y/n)`);
+    const answer = await prompt(`Would you like to file a report on GitHub to report Success/Failure? (y/n)`);
     if (answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
       await fileReport(resultLabel);
     } else {

@@ -68,7 +68,6 @@ and there are those completed jobs:
   - CreateContainerConfigError: bad config (missing ConfigMap/Secret, etc.)
   - OOMKilled: container killed for exceeding memory limits
   - Error: container exited with a non-zero exit code
-  - Restart count > 0: container has restarted even if currently Running
   - Not Ready: pod is running but readiness probe is failing
   - Evicted: pod was evicted due to node pressure
   - Terminating: pod stuck in terminating state
@@ -82,10 +81,11 @@ and there are those completed jobs:
   - Failed / Error: extract the logs of the failing container
   - Evicted: show the eviction reason from pod status
   - Not Ready: show readiness probe config and recent events
-  - Restart count > 0: show last termination reason and restart count
   - Terminating: show how long the pod has been terminating and if finalizers are blocking
 
 # Reporting
+
+At the end of the anomaly section, if any pods have restart count > 0, add a note: "Note: found <count> restarts" listing the pods and their restart counts. This is informational, not an anomaly.
 
 Save the entire report in a file `trustable-doctor.txt`. If the environment variable `$OPS_PWD` is set, save it in the `$OPS_PWD` folder; otherwise save it in the current directory. The report must include the system info, all check results, the logs of trustable-0, nuvolaris-operator-0, controller-0, and any anomaly logs (the same content that would be posted as GitHub issue and comments). Print the full path where the report was saved: `trustable doctor report saved in <full path>`.
 
