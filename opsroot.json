@@ -4,7 +4,7 @@
     "images": {
       "truollama": "docker.io/ollama/ollama:0.18.2",
       "trustable": "ghcr.io/trustable-ai/trustable-app:26.086.1301",
-      "trustabledev": "ghcr.io/trustable-ai/trustable-app:trustabledev_0.3.2-alpha_26.090.1006"
+      "trustabledev": "ghcr.io/trustable-ai/trustable-app:trustabledev_0.3.2-alpha_26.090.1030"
     }
   }
 }
