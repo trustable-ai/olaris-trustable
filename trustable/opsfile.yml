@@ -1,6 +1,7 @@
 version: "3"
 
 vars:
+  KEY: "trustable"
   EXTRA: ""
   ENTRY: trustable
   SSHLOCAL: .ssh/id_trustable
@@ -23,7 +24,20 @@ env:
       else echo ~/.kube/config
       fi
 
+
+
 tasks:
+
+  boh:
+    env:
+      TRUSTABLE_IMAGE:
+        sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
+
+    cmds:
+    - echo "boh"
+    - echo "$TRUSTABLE_IMAGE"
+    - echo {{.KEY}}
+    - echo
 
   preload:
     desc: preload images
@@ -96,6 +110,10 @@ tasks:
   sts:
     silent: true
     desc: deploy the sts in kubernetes
+    env:
+      IMAGE:
+        sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
+
     cmds:
       - |
         case {{.INGRESS}} in
@@ -106,9 +124,9 @@ tasks:
         envsubst -i nginx.conf -o _nginx.conf
       - kubectl -n nuvolaris create configmap nginx-proxy-config --from-file=nginx.conf=_nginx.conf
       - |
-        export IMAGE="{{.TRUSTABLE_IMAGES_TRUSTABLE}}"
         envsubst <sts.yaml >_sts.yaml
         kubectl -n nuvolaris apply -f _sts.yaml
+        echo "Deployed $IMAGE"
 
   deploy:
     silent: true
@@ -190,5 +208,3 @@ tasks:
         echo Found ssh config remote-{{.ENTRY}}
       fi
     - echo "You can now reach {{.ENTRY}} with ssh {{.ENTRY}}"
-
-
