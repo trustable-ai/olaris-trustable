@@ -25,19 +25,7 @@ env:
       fi
 
 
-
 tasks:
-
-  boh:
-    env:
-      TRUSTABLE_IMAGE:
-        sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
-
-    cmds:
-    - echo "boh"
-    - echo "$TRUSTABLE_IMAGE"
-    - echo {{.KEY}}
-    - echo
 
   preload:
     desc: preload images
