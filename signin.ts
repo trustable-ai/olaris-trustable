@@ -6,21 +6,39 @@ export {};
   Retry up to 10 seconds until is available (1 second interval) otherwise give up with an error
   Execute `docker exec ollama ollama signin` and print the output.
   Parse the output, you find a url starting with https://ollama.com/connect extract the query string.
-  Invoke the browser to open trustable url  and add the query string.
-  Otherwise just open the trustable url without the query string.
+  Let the <signed-url> be the trustable url with the query string of ollama connect if found, otherwise it is just the trustable url.
+  Invoke the browser with the <signed-url>.
   On Windows use powershell Start-Process to handle URLs with '&' in query strings.
-  Complete printing version, build and expiration.
+  If opening a browser fails show the message:
+  ````
+  There is not a browser available, if you are connecting with ssh you need to:
+  reconnect to the server with the command `sudo ssh -L 80:127.0.0.1:80 <user>@<server>`
+  and then open the following url: <signed-url>
+  ```
  */
 
 const platform = process.platform;
 
-function openUrl(url: string) {
+async function openUrl(url: string) {
+  let cmd: string[];
   if (platform === "darwin") {
-    Bun.spawn(["open", url]);
+    cmd = ["open", url];
   } else if (platform === "win32") {
-    Bun.spawn(["powershell", "-Command", `Start-Process '${url}'`]);
+    cmd = ["powershell", "-Command", `Start-Process '${url}'`];
   } else {
-    Bun.spawn(["xdg-open", url]);
+    cmd = ["xdg-open", url];
+  }
+  try {
+    const proc = Bun.spawn(cmd, { stdout: "ignore", stderr: "pipe" });
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) throw new Error(`exit code ${exitCode}`);
+  } catch {
+    const user = Bun.env.USER || "<user>";
+    console.log(
+      `There is not a browser available, if you are connecting with ssh you need to:\n` +
+        `reconnect to the server with the command \`sudo ssh -L 80:127.0.0.1:80 ${user}@<server>\`\n` +
+        `and then open the following url: ${url}`
+    );
   }
 }
 
@@ -65,11 +83,11 @@ const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
 if (match) {
   const queryString = match[1];
   const url = `${trustableUrl}?${queryString}`;
-  openUrl(url);
   console.log(`Opening ${url}`);
+  await openUrl(url);
 } else {
-  openUrl(trustableUrl);
   console.log(`Opening ${trustableUrl}`);
+  await openUrl(trustableUrl);
 }
 
 // Print version info
