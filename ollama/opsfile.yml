@@ -69,7 +69,7 @@ tasks:
   undeploy:
     desc: undeploy ollama
     silent: true
-    ignore_errors: true
+    ignore_error: true
     cmds:
     - |
       if docker ps -a | rg ollama

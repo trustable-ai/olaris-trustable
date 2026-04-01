@@ -135,7 +135,7 @@ tasks:
   undeploy:
     silent: true
     desc: uninstall trustable
-    ignore_errors: true
+    ignore_error: true
     cmds:
       - >
         kubectl -n nuvolaris delete
