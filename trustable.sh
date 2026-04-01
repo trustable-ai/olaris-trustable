@@ -4,15 +4,15 @@
 OPS_REPO="https://github.com/nuvolaris/bestia"
 OPS_BRANCH="bestia"
 
-# Check for at least 16 GB of RAM
+# Check for at least 14 GB of RAM
 if [[ "$OSTYPE" == "darwin"* ]]; then
     TOTAL_MEM_GB=$(( $(sysctl -n hw.memsize) / 1073741824 ))
 else
     TOTAL_MEM_GB=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') / 1048576 ))
 fi
 
-if [ "$TOTAL_MEM_GB" -lt 16 ]; then
-    echo "ERROR: This system has ${TOTAL_MEM_GB} GB of RAM. At least 16 GB is required."
+if [ "$TOTAL_MEM_GB" -lt 14 ]; then
+    echo "ERROR: This system has ${TOTAL_MEM_GB} GB of RAM. At least 14 GB is required."
     exit 1
 fi
 echo "RAM check passed: ${TOTAL_MEM_GB} GB detected."
@@ -25,7 +25,7 @@ if ! command -v docker &> /dev/null; then
 fi
 echo "Docker check passed."
 
-# Detect OS and set environment variables
+# Set environment variables (avoid adding multiple times)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS - add to .bashrc and .zshrc
     for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -50,6 +50,29 @@ fi
 export OPS_REPO
 export OPS_BRANCH
 
+# Open firewall (Linux only, skip for macOS)
+if [[ "$OSTYPE" != "darwin"* ]]; then
+    echo ""
+    read -p "I need your authorization to open the firewall to a local web server to run the application. Confirm? (y/N) " confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if command -v ufw &> /dev/null; then
+            sudo ufw allow 80/tcp
+            echo "Firewall rule added via ufw."
+        elif command -v firewall-cmd &> /dev/null; then
+            sudo firewall-cmd --add-port=80/tcp --permanent
+            sudo firewall-cmd --reload
+            echo "Firewall rule added via firewalld."
+        elif command -v iptables &> /dev/null; then
+            sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+            echo "Firewall rule added via iptables."
+        else
+            echo "WARNING: Could not detect firewall tool. Please open port 80 manually."
+        fi
+    else
+        echo "Skipped firewall configuration."
+    fi
+fi
+
 # Download ops
 echo "Downloading ops..."
 curl -fsSL n7s.co/get-ops | bash
@@ -60,14 +83,16 @@ ops -t
 # Install plugin
 echo "Installing Trustable Plugin..."
 ops -plugin https://github.com/trustable-ai/olaris-trustable
+
+# Notify download
 ops trustable notify MSG=Download
 
 echo ""
-echo "================================================"
+echo "=================================================="
 echo " Please reopen this terminal before using ops."
 echo " Install Trustable with: 'ops trustable setup'"
 echo " For more information and bug reports:"
 echo " https://github.com/trustable-ai"
-echo "================================================"
+echo "=================================================="
 echo ""
 read -p "Press Enter to exit..."

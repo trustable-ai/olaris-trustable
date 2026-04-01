@@ -36,7 +36,7 @@ tasks:
     - docker rm -f ollama >/dev/null 2>&1 || true
     - >
       docker run -d
-      --name ollama
+      --name ollama --rm
       --restart unless-stopped
       -p 11434:11434
       -v $HOME/.ollama:/root/.ollama

@@ -3,10 +3,10 @@
 $OPS_REPO = "https://github.com/nuvolaris/bestia"
 $OPS_BRANCH = "bestia"
 
-# Check for at least 16 GB of RAM
+# Check for at least 14 GB of RAM
 $totalMemoryGB = [math]::Round((Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
-if ($totalMemoryGB -lt 16) {
-    Write-Host "ERROR: This system has ${totalMemoryGB} GB of RAM. At least 16 GB is required." -ForegroundColor Red
+if ($totalMemoryGB -lt 14) {
+    Write-Host "ERROR: This system has ${totalMemoryGB} GB of RAM. At least 14 GB is required." -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -21,7 +21,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Write-Host "Docker check passed."
 
-# Set system environment variables
+# Set system environment variables (User level)
 [System.Environment]::SetEnvironmentVariable("OPS_REPO", $OPS_REPO, "User")
 [System.Environment]::SetEnvironmentVariable("OPS_BRANCH", $OPS_BRANCH, "User")
 
@@ -30,6 +30,16 @@ $env:OPS_REPO = $OPS_REPO
 $env:OPS_BRANCH = $OPS_BRANCH
 
 Write-Host "Environment variables OPS_REPO and OPS_BRANCH set for current user."
+
+# Open firewall for localhost:80
+$confirm = Read-Host "I need your authorization to open the firewall to a local web server to run the application. Confirm? (y/N)"
+if ($confirm -match '^[Yy]$') {
+    Start-Process powershell -Verb RunAs -ArgumentList `
+        "New-NetFirewallRule -DisplayName 'Trustable' -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow"
+    Write-Host "Firewall rule added for port 80."
+} else {
+    Write-Host "Skipped firewall configuration."
+}
 
 # Download ops (run in child process so its exit doesn't kill this script)
 Write-Host "Downloading ops..."
@@ -41,13 +51,15 @@ ops -t
 # Install plugin
 Write-Host "Installing Trustable Plugin..."
 ops -plugin https://github.com/trustable-ai/olaris-trustable
+
+# Notify download
 ops trustable notify MSG=Download
 
 Write-Host ""
-Write-Host "================================================"
+Write-Host "=================================================="
 Write-Host " Please reopen this terminal before using ops."
 Write-Host " Install Trustable with: 'ops trustable setup'"
 Write-Host " For more information and bug reports:"
 Write-Host " https://github.com/trustable-ai"
-Write-Host "================================================"
+Write-Host "=================================================="
 Read-Host "Press Enter to exit"
