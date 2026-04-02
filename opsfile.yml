@@ -1,5 +1,4 @@
 version: 3
-
 env:
   KUBECONFIG:
     sh: |-
@@ -8,40 +7,35 @@ env:
       else echo ~/.kube/config
       fi
   KEY: "trustable"
-
 tasks:
-
   setup:
     silent: true
     desc: setup trustable
     cmds:
-    - touch _fail
-    - defer: ops trustable notify
-    - defer: ops trustable doctor
-    - |
-      if curl http://miniops.me/api/info >/dev/null 2>/dev/null
-      then echo MiniOps  running
-      else ops setup mini
-      fi
-    - |
-      if curl http://localhost:11434 >/dev/null 2>/dev/null
-      then echo Ollama  running
-      else ops trustable ollama deploy
-      fi
-    - |
-      if ops util kubeget sts/trustable .metadata.name >/dev/null 2>/dev/null
-      then echo Trustable running
-      else ops trustable trustable deploy
-      fi
-    - rm -f _fail
-    - task: signin
-
+      - touch _fail
+      - defer: ops trustable notify
+      - defer: ops trustable doctor
+      - |
+        if curl http://miniops.me/api/info >/dev/null 2>/dev/null
+        then echo MiniOps  running
+        else ops setup mini
+        fi
+      - |
+        if curl http://localhost:11434 >/dev/null 2>/dev/null
+        then echo Ollama  running
+        else ops trustable ollama deploy
+        fi
+      - |
+        if ops util kubeget sts/trustable .metadata.name >/dev/null 2>/dev/null
+        then echo Trustable running
+        else ops trustable trustable deploy
+        fi
+      - rm -f _fail
+      - task: signin
   ollama:
     desc: managing ollama
-
   trustable:
     desc: managing trustable
-
   notify:
     silent: true
     vars:
@@ -58,27 +52,24 @@ tasks:
           fi
         fi
         curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" >/dev/null
-
   signin:
     desc: ollama signin
     silent: true
     cmds:
-    - bun signin.ts {{.CLI_ARGS}}
-
+      - bun signin.ts {{.CLI_ARGS}}
   update:
     desc: updating plugin
     silent: true
     cmds:
-    - ops -update
-    - ops -plugin https://github.com/trustable-ai/olaris-trustable
-    - echo "Trustable updated - use 'ops trustable redeploy' to redeploy trustable"
-
+      - ops -update
+      - ops -plugin https://github.com/trustable-ai/olaris-trustable
+      - echo "Trustable updated - use 'ops trustable redeploy' to redeploy trustable"
   redeploy:
     desc: redeploy trustable and ollama
     cmds:
-    - ops trustable ollama redeploy
-    - ops trustable trustable redeploy KEY="{{.KEY}}"
-
+      - ops trustable ollama redeploy
+      - ops trustable trustable redeploy KEY="{{.KEY}}"
+    silent: false
   remove-all:
     - |
       {{if eq OS "windows"}}
@@ -88,40 +79,34 @@ tasks:
       ops -reset force ;
       /bin/rm -f ~/.local/bin/ops
       {{end}}
-
   uninstall:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
     desc: uninstalling
     silent: true
     ignore_error: true
     cmds:
-    - ops trustable ollama undeploy
-    - ops setup docker delete
-    - task: remove-all
-
+      - ops trustable ollama undeploy
+      - ops setup docker delete
+      - task: remove-all
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
     cmds:
-    - ops setup docker clean-all
-
+      - ops setup docker clean-all
   logs:
     desc: trustable logs
     silent: true
     cmds:
-    - kubectl -n nuvolaris logs trustable-0 -f
-
+      - kubectl -n nuvolaris logs trustable-0 -f
   doctor:
     desc: run diagnostics and optionally file a report
     silent: true
     cmds:
-    - bun doctor.ts
-
-
+      - bun doctor.ts
   restart:
     desc: restart the cluster and ollama
     silent: true
     cmds:
-    - docker restart ollama
-    - docker restart nuvolaris-control-plane
-    - ops setup kubernetes post-deploy
-    - task: doctor
+      - docker restart ollama
+      - docker restart nuvolaris-control-plane
+      - ops setup kubernetes post-deploy
+      - task: doctor

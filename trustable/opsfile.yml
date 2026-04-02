@@ -89,7 +89,7 @@ tasks:
     desc: deploy the ingress
     env:
       DOMAIN:
-        sh: ops util apihost | replace -s 'https?://' -r '' --regex --stdin
+        sh: ops util kubeget cm/config .metadata.annotations.apihost | replace -s 'https?://' -r '' --regex --stdin
     cmds:
       - |
         envsubst -i {{.INGRESS}}.yaml -o _ingress.yaml
@@ -120,7 +120,7 @@ tasks:
     silent: true
     desc: setup trustable
     cmds:
-      - ops util apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
+      - ops util kubeget cm/config .metadata.annotations.apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
       - task: preload
       - task: ssh-key
       - task: kube-config

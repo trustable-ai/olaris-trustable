@@ -13,7 +13,7 @@ tasks:
     silent: true
     cmds:
     - docker -v >/dev/null 2>&1 || die "docker is required."
-    - ops util apihost | rg 'http://miniops.me' || die "Nuvolaris miniops required"
+    - ops util kubeget cm/config .metadata.annotations.apihost | rg 'http://miniops.me' || die "Nuvolaris miniops required"
     - docker pull "$OLLAMA" || die "cannot pull ollama"
 
   check-gpu:
