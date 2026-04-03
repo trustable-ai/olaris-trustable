@@ -8,7 +8,7 @@ echo @'
 #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Bash Start -----------------------------------------------------------
 
-curl -fsSL n7s.co/get-trustable-sh | bash
+curl -fsSL https://raw.githubusercontent.com/trustable-ai/olaris-trustable/refs/heads/main/trustable.sh | bash
 exit $?
 
 # Above this line is Bash Script -------------------------------------------
@@ -18,7 +18,7 @@ echo > /dev/null <<"out-null" ###
 #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 # Below this line is Powershell Script -------------------------------------
 
-irm n7s.co/get-trustable-ps1 | iex
+irm https://raw.githubusercontent.com/trustable-ai/olaris-trustable/refs/heads/main/trustable.ps1 | iex
 return
 
 # Powershell End -----------------------------------------------------------
