@@ -97,56 +97,16 @@ async function prompt(question: string): Promise<string> {
 async function checkPrereqs() {
   console.log(`\n${BOLD}# Prerequisites${RESET}\n`);
 
-  // Memory check
+  // CPU, Memory, Disk check via ops setup docker check-space
   try {
-    let gb = 0;
-    if (process.platform === "darwin") {
-      const { stdout } = await exec(["sysctl", "-n", "hw.memsize"]);
-      gb = parseInt(stdout) / (1024 ** 3);
-    } else if (process.platform === "win32") {
-      const { stdout } = await exec(["powershell", "-Command", "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory"]);
-      gb = parseInt(stdout) / (1024 ** 3);
+    const spaceCheck = await exec(["ops", "setup", "docker", "check-space"]);
+    if (spaceCheck.exitCode === 0) {
+      record("CPU/Memory/Disk", "ok", spaceCheck.stdout.replace(/\n/g, " | "));
     } else {
-      const { stdout } = await exec(["sh", "-c", "grep MemTotal /proc/meminfo | awk '{print $2}'"]);
-      gb = parseInt(stdout) / (1024 * 1024);
+      record("CPU/Memory/Disk", "fail", "System requirements not met", spaceCheck.stdout + "\n" + spaceCheck.stderr);
     }
-    const gbRounded = Math.round(gb);
-    if (gbRounded >= 16) {
-      record("Memory", "ok", `${gbRounded} GB`);
-    } else {
-      record("Memory", "fail", `${gbRounded} GB (need at least 16 GB)`);
-    }
-  } catch {
-    record("Memory", "warn", "Could not determine memory");
-  }
-
-  // Disk check
-  try {
-    let available = 0;
-    if (process.platform === "win32") {
-      const { stdout } = await exec(["powershell", "-Command", "(Get-PSDrive C).Free"]);
-      available = Math.floor(parseInt(stdout) / (1024 ** 3));
-    } else if (process.platform === "darwin") {
-      const { stdout } = await exec(["df", "-g", "."]);
-      const lines = stdout.split("\n");
-      if (lines.length >= 2) {
-        available = parseInt(lines[1].split(/\s+/)[3]);
-      }
-    } else {
-      // Linux: df doesn't support -g, use -BG for gigabyte blocks
-      const { stdout } = await exec(["df", "-BG", "."]);
-      const lines = stdout.split("\n");
-      if (lines.length >= 2) {
-        available = parseInt(lines[1].split(/\s+/)[3]);
-      }
-    }
-    if (available >= 30) {
-      record("Disk", "ok", `${available} GB available`);
-    } else {
-      record("Disk", "fail", `${available} GB available (need at least 30 GB)`);
-    }
-  } catch {
-    record("Disk", "warn", "Could not determine disk space");
+  } catch (e: any) {
+    record("CPU/Memory/Disk", "fail", `Check error: ${e.message}`);
   }
 
   // Docker in path
@@ -675,18 +635,40 @@ async function fileReport(resultLabel: string) {
   // Add anomaly logs
   logComments.push(...anomalyLogs);
 
+  const MAX_COMMENT_SIZE = 65000;
+
   for (const { description, log } of logComments) {
     if (!log.trim()) continue;
-    const commentBody = `# ${description}\n\`\`\`\n${log.slice(0, 60000)}\n\`\`\``;
-    const commentResp = await fetch(ISSUE_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment: issueNumber, body: commentBody }),
-    });
-    if (commentResp.ok) {
-      console.log(`  ${GREEN}✓${RESET} Comment added: ${description}`);
-    } else {
-      console.log(`  ${RED}✗${RESET} Failed to add comment: ${description}`);
+
+    // Split log into chunks at line boundaries
+    const chunks: string[] = [];
+    const lines = log.split("\n");
+    let current = "";
+    for (const line of lines) {
+      // Reserve space for header + code fences (~200 chars)
+      if (current.length + line.length + 1 > MAX_COMMENT_SIZE - 200 && current.length > 0) {
+        chunks.push(current);
+        current = line;
+      } else {
+        current += (current ? "\n" : "") + line;
+      }
+    }
+    if (current) chunks.push(current);
+
+    const totalParts = chunks.length;
+    for (let i = 0; i < chunks.length; i++) {
+      const partLabel = totalParts > 1 ? ` (Part ${i + 1}/${totalParts})` : "";
+      const commentBody = `# ${description}${partLabel}\n\`\`\`\n${chunks[i]}\n\`\`\``;
+      const commentResp = await fetch(ISSUE_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: issueNumber, body: commentBody }),
+      });
+      if (commentResp.ok) {
+        console.log(`  ${GREEN}✓${RESET} Comment added: ${description}${partLabel}`);
+      } else {
+        console.log(`  ${RED}✗${RESET} Failed to add comment: ${description}${partLabel}`);
+      }
     }
   }
 

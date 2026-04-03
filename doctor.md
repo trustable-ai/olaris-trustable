@@ -9,11 +9,7 @@ and provide detailed informations on the errors
 
 # Prereq
 
-- check you have at least 16gb of memory and 30gb of disk space
-  - macOS: `sysctl -n hw.memsize` for memory, `df -g .` for disk
-  - Linux: `/proc/meminfo` for memory, `df -BG .` for disk
-  - Windows: PowerShell `Get-CimInstance Win32_ComputerSystem` for memory, `Get-PSDrive` for disk
-  - round memory to nearest GB before comparing (hardware reports slightly less than nominal)
+- invoke ops setup docker check-space to check cpu, mem and disk
 - check docker is in path (`which` on Unix, `where` on Windows)
 - check docker is up and running
 - check docker call pull images: execute commands and access the internet:
@@ -112,21 +108,24 @@ The <initial assessemnt> is:
 
 It returns a json with number and the url
 
-Add  as a separate comment
+Add logs as separate comments. Each comment is posted via:
 {
     "comment": <issue number>
     "body": <comment>
 }
 
+Post one comment per log source:
 - the log of trustable-0
 - the log of nuvolaris-operator-0
 - the log of controller-0
 - the log of any anomaly detected
 
-Format of comments:
+If a single comment would exceed 65000 characters, split it into multiple sequential comments of at most 65000 characters each, splitting at line boundaries. Label each chunk with a part number, e.g. "Part 1/3", "Part 2/3", etc.
 
-# <description>
+Format of each comment (or chunk):
+
+# <description> (Part N/M)
 ```
-<logs>
+<logs chunk>
 ```
 
