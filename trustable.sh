@@ -77,7 +77,9 @@ fi
 echo "Downloading ops..."
 curl -fsSL n7s.co/get-ops | bash
 
+
 # Initialize
+export PATH=~/.local/bin:$PATH
 ops -t
 
 # Install plugin
