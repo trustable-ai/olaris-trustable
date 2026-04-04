@@ -783,6 +783,19 @@ async function main() {
   } catch (e: any) {
     console.error(`${RED}Failed to file report: ${e.message}${RESET}`);
   }
+
+  // Support community
+  try {
+    const resp = await fetch("https://qrenco.de/n7s.co/wa-trustable", {
+      signal: AbortSignal.timeout(5000),
+      headers: { "User-Agent": "curl/8.0" },
+    });
+    if (resp.ok) {
+      const qr = await resp.text();
+      console.log(qr);
+    }
+  } catch {}
+  console.log(`\n${BOLD}Join our support community on WhatsApp at https://n7s.co/wa-trustable${RESET}\n`);
 }
 
 main().catch((e) => {
