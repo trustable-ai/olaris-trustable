@@ -16,7 +16,7 @@ tasks:
       - defer: ops trustable notify
       - defer: ops trustable doctor
       - |
-        if  curl -sL http://miniops.me/api/info | jq -r .description | rg "OpenWhisk"
+        if  curl -sL http://miniops.me/api/info 2>/dev/null | jq -r .description 2>/dev/null | rg "OpenWhisk"
         then echo MiniOps running
         else ops setup mini
         fi
