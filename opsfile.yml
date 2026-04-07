@@ -16,17 +16,17 @@ tasks:
       - defer: ops trustable notify
       - defer: ops trustable doctor
       - |
-        if curl http://miniops.me/api/info >/dev/null 2>/dev/null
-        then echo MiniOps  running
+        if  curl -sL http://miniops.me/api/info | jq -r .description | rg "OpenWhisk"
+        then echo MiniOps running
         else ops setup mini
         fi
       - |
-        if curl http://localhost:11434 >/dev/null 2>/dev/null
-        then echo Ollama  running
+        if curl -sL http://localhost:11434 | rq Ollama
+        then echo Ollama running
         else ops trustable ollama deploy
         fi
       - |
-        if ops util kubeget sts/trustable .metadata.name >/dev/null 2>/dev/null
+        if curl -sL trustable.miniops.me | rg '<title>Trustable</title>'
         then echo Trustable running
         else ops trustable trustable deploy
         fi
