@@ -1,6 +1,5 @@
 Create script trustable.sh and a trustable.ps1
 Overview
-- check you have at least 14gb
 - check docker is installed
 - set variables
 - set the firewall to localhost:80
@@ -9,9 +8,8 @@ Overview
 - recommend installation instructions
 
 # check
-- there are at least 14gb of memory it not abort as insufficient memory
-- docker is available on the path, if not abort recommending to install docker desktop from https://www.docker.com
 
+- docker is available on the path, if not abort recommending to install docker desktop from https://www.docker.com
 
 # set variables
 - OPS_REPO=https://github.com/nuvolaris/bestia

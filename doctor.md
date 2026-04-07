@@ -9,7 +9,6 @@ and provide detailed informations on the errors
 
 # Prereq
 
-- invoke ops setup docker check-space to check cpu, mem and disk
 - check docker is in path (`which` on Unix, `where` on Windows)
 - check docker is up and running
 - check docker call pull images: execute commands and access the internet:

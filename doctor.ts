@@ -97,18 +97,6 @@ async function prompt(question: string): Promise<string> {
 async function checkPrereqs() {
   console.log(`\n${BOLD}# Prerequisites${RESET}\n`);
 
-  // CPU, Memory, Disk check via ops setup docker check-space
-  try {
-    const spaceCheck = await exec(["ops", "setup", "docker", "check-space"]);
-    if (spaceCheck.exitCode === 0) {
-      record("CPU/Memory/Disk", "ok", spaceCheck.stdout.replace(/\n/g, " | "));
-    } else {
-      record("CPU/Memory/Disk", "fail", "System requirements not met", spaceCheck.stdout + "\n" + spaceCheck.stderr);
-    }
-  } catch (e: any) {
-    record("CPU/Memory/Disk", "fail", `Check error: ${e.message}`);
-  }
-
   // Docker in path
   const whichCmd = process.platform === "win32" ? "where" : "which";
   const dockerWhich = await exec([whichCmd, "docker"]);

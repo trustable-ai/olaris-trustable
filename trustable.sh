@@ -4,19 +4,6 @@
 OPS_REPO="https://github.com/nuvolaris/bestia"
 OPS_BRANCH="bestia"
 
-# Check for at least 14 GB of RAM
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    TOTAL_MEM_GB=$(( $(sysctl -n hw.memsize) / 1073741824 ))
-else
-    TOTAL_MEM_GB=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') / 1048576 ))
-fi
-
-if [ "$TOTAL_MEM_GB" -lt 14 ]; then
-    echo "ERROR: This system has ${TOTAL_MEM_GB} GB of RAM. At least 14 GB is required."
-    exit 1
-fi
-echo "RAM check passed: ${TOTAL_MEM_GB} GB detected."
-
 # Check Docker is available
 if ! command -v docker &> /dev/null; then
     echo "ERROR: Docker is not installed or not in PATH."

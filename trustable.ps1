@@ -3,15 +3,6 @@
 $OPS_REPO = "https://github.com/nuvolaris/bestia"
 $OPS_BRANCH = "bestia"
 
-# Check for at least 14 GB of RAM
-$totalMemoryGB = [math]::Round((Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
-if ($totalMemoryGB -lt 14) {
-    Write-Host "ERROR: This system has ${totalMemoryGB} GB of RAM. At least 14 GB is required." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
-    exit 1
-}
-Write-Host "RAM check passed: ${totalMemoryGB} GB detected."
-
 # Check Docker is available
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "ERROR: Docker is not installed or not in PATH." -ForegroundColor Red
