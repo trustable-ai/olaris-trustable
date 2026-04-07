@@ -77,7 +77,8 @@ tasks:
       {{else}}
       cd ~
       ops -reset force ;
-      /bin/rm -f ~/.local/bin/ops
+      /bin/rm -f ~/.local/bin/ops ;
+      sudo /bin/rm -Rf ~/.ops
       {{end}}
   uninstall:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"

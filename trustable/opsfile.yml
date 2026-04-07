@@ -24,7 +24,6 @@ env:
       else echo ~/.kube/config
       fi
 
-
 tasks:
 
   preload:
