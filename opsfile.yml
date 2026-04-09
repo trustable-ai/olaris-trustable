@@ -7,6 +7,7 @@ env:
       else echo ~/.kube/config
       fi
   KEY: "trustable"
+
 tasks:
   setup:
     silent: true
@@ -21,7 +22,7 @@ tasks:
         else ops setup mini
         fi
       - |
-        if curl -sL http://localhost:11434 | rq Ollama
+        if curl -sL http://localhost:11434 | rg Ollama
         then echo Ollama running
         else ops trustable ollama deploy
         fi
@@ -32,10 +33,13 @@ tasks:
         fi
       - rm -f _fail
       - task: signin
+
   ollama:
     desc: managing ollama
+
   trustable:
     desc: managing trustable
+
   notify:
     silent: true
     vars:
@@ -52,11 +56,19 @@ tasks:
           fi
         fi
         curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" >/dev/null
+
   signin:
-    desc: ollama signin
+    desc: signin signin
     silent: true
     cmds:
       - bun signin.ts {{.CLI_ARGS}}
+
+  signout:
+    desc: signin signin
+    silent: true
+    cmds:
+      - docker exec -i ollama ollama signout
+
   update:
     desc: updating plugin
     silent: true
@@ -64,12 +76,14 @@ tasks:
       - ops -update
       - ops -plugin https://github.com/trustable-ai/olaris-trustable
       - echo "Trustable updated - use 'ops trustable redeploy' to redeploy trustable"
+
   redeploy:
     desc: redeploy trustable and ollama
     cmds:
       - ops trustable ollama redeploy
       - ops trustable trustable redeploy KEY="{{.KEY}}"
     silent: false
+
   remove-all:
     - |
       {{if eq OS "windows"}}
@@ -80,6 +94,7 @@ tasks:
       /bin/rm -f ~/.local/bin/ops ;
       sudo /bin/rm -Rf ~/.ops
       {{end}}
+
   uninstall:
     prompt: "Are you sure you want to uninstall (your code is still in .ops-workspace under the home)"
     desc: uninstalling
@@ -89,6 +104,7 @@ tasks:
       - ops trustable ollama undeploy
       - ops setup docker delete
       - task: remove-all
+
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
     cmds:
@@ -98,11 +114,13 @@ tasks:
     silent: true
     cmds:
       - kubectl -n nuvolaris logs trustable-0 -f
+
   doctor:
     desc: run diagnostics and optionally file a report
     silent: true
     cmds:
       - bun doctor.ts
+
   restart:
     desc: restart the cluster and ollama
     silent: true
