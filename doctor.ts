@@ -70,6 +70,15 @@ interface CheckResult {
   details?: string;
 }
 
+interface ClusterEndpoint {
+  apiHost: string;
+  proto: string;
+  domain: string;
+  trustableHost: string;
+  opencodeHost: string;
+  viteHost: string;
+}
+
 const results: CheckResult[] = [];
 const anomalyLogs: { description: string; log: string }[] = [];
 
@@ -90,6 +99,59 @@ async function prompt(question: string): Promise<string> {
     return line.trim();
   }
   return "";
+}
+
+function normalizeApiHost(value: string): string {
+  let apiHost = value.trim();
+  if (!apiHost) return "http://miniops.me";
+  if (!/^https?:\/\//.test(apiHost)) apiHost = `http://${apiHost}`;
+  return apiHost.replace(/\/+$/, "");
+}
+
+async function clusterEndpoint(): Promise<ClusterEndpoint> {
+  let apiHost = Bun.env.OPS_APIHOST || Bun.env.APIHOST || "";
+  if (!apiHost) {
+    const cfg = await exec(["kubectl", "-n", NAMESPACE, "get", "cm/config", "-o", "jsonpath={.metadata.annotations.apihost}"]);
+    if (cfg.exitCode === 0) apiHost = cfg.stdout;
+  }
+
+  apiHost = normalizeApiHost(apiHost);
+  let parsed: URL;
+  try {
+    parsed = new URL(apiHost);
+  } catch {
+    apiHost = "http://miniops.me";
+    parsed = new URL(apiHost);
+  }
+
+  const domain = (Bun.env.TRUSTABLE_DOMAIN || parsed.hostname).trim();
+  return {
+    apiHost,
+    proto: parsed.protocol.replace(":", ""),
+    domain,
+    trustableHost: (Bun.env.TRUSTABLE_HOST || `trustable.${domain}`).trim(),
+    opencodeHost: (Bun.env.OPENCODE_HOST || `opencode.${domain}`).trim(),
+    viteHost: (Bun.env.VITE_HOST || `vite.${domain}`).trim(),
+  };
+}
+
+async function resolveHost(host: string): Promise<string[]> {
+  if (process.platform === "win32") {
+    const { stdout, exitCode } = await exec(["powershell", "-Command", `(Resolve-DnsName ${host} -Type A -ErrorAction SilentlyContinue).IPAddress`]);
+    return exitCode === 0 ? stdout.split(/\s+/).filter(Boolean) : [];
+  }
+  const { stdout, exitCode } = await exec(["dig", "+short", host]);
+  if (exitCode !== 0) return [];
+  return stdout.split(/\s+/).filter((line) => /^\d{1,3}(\.\d{1,3}){3}$/.test(line));
+}
+
+function nipIoIp(host: string): string | undefined {
+  const labels = host.split(".");
+  const nipIndex = labels.findIndex((label, index) => label === "nip" && labels[index + 1] === "io");
+  if (nipIndex < 4) return undefined;
+  const parts = labels.slice(nipIndex - 4, nipIndex);
+  if (parts.every((part) => /^\d{1,3}$/.test(part))) return parts.join(".");
+  return undefined;
 }
 
 // --- Prereq Checks ---
@@ -172,23 +234,34 @@ async function checkPrereqs() {
 
 async function checkPorts() {
   console.log(`\n${BOLD}# Ports${RESET}\n`);
+  const endpoint = await clusterEndpoint();
+  record("Nuvolaris apihost", "ok", endpoint.apiHost);
 
   // DNS checks
-  const hosts = ["miniops.me", "trustable.miniops.me", "opencode.miniops.me", "vite.miniops.me"];
+  const hosts = [endpoint.domain, endpoint.trustableHost, endpoint.opencodeHost, endpoint.viteHost];
+  const expectedIps = (Bun.env.TRUSTABLE_EXPECTED_IP || "")
+    .split(",")
+    .map((ip) => ip.trim())
+    .filter(Boolean);
+  if (expectedIps.length === 0) {
+    expectedIps.push(...await resolveHost(endpoint.domain));
+  }
+  if (expectedIps.length === 0) {
+    const nipIp = nipIoIp(endpoint.domain) || nipIoIp(endpoint.trustableHost);
+    if (nipIp) expectedIps.push(nipIp);
+  }
+
   for (const host of hosts) {
     try {
-      let resolved = "";
-      if (process.platform === "win32") {
-        const { stdout, exitCode } = await exec(["powershell", "-Command", `(Resolve-DnsName ${host} -Type A -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress`]);
-        if (exitCode === 0) resolved = stdout.trim();
+      const resolved = await resolveHost(host);
+      const overlap = expectedIps.length === 0 || resolved.some((ip) => expectedIps.includes(ip));
+      if (resolved.length === 0) {
+        record(`DNS ${host}`, "fail", "does not resolve");
+      } else if (overlap) {
+        const suffix = expectedIps.length > 0 ? `; expected ${expectedIps.join(", ")}` : "";
+        record(`DNS ${host}`, "ok", `resolves to ${resolved.join(", ")}${suffix}`);
       } else {
-        const { stdout, exitCode } = await exec(["sh", "-c", `dig +short ${host} | head -1`]);
-        if (exitCode === 0) resolved = stdout.trim();
-      }
-      if (resolved === "127.0.0.1") {
-        record(`DNS ${host}`, "ok", "resolves to 127.0.0.1");
-      } else {
-        record(`DNS ${host}`, "fail", `resolves to '${resolved}' (expected 127.0.0.1)`);
+        record(`DNS ${host}`, "fail", `resolves to ${resolved.join(", ")}; expected ${expectedIps.join(", ")}`);
       }
     } catch (e: any) {
       record(`DNS ${host}`, "fail", `DNS check error: ${e.message}`);
@@ -210,10 +283,10 @@ async function checkPorts() {
 
   // OpenWhisk API
   try {
-    const resp = await fetch("http://miniops.me/api/info", { signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(`${endpoint.apiHost}/api/info`, { signal: AbortSignal.timeout(5000) });
     const json = await resp.json();
     if (json.description === "OpenWhisk") {
-      record("OpenWhisk API", "ok", "OpenWhisk responding");
+      record("OpenWhisk API", "ok", `OpenWhisk responding at ${endpoint.apiHost}`);
     } else {
       record("OpenWhisk API", "fail", `description is '${json.description}' (expected OpenWhisk)`);
     }

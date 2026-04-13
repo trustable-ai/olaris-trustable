@@ -4,11 +4,13 @@ kind: Ingress
 metadata:
   name: trustable-ing
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$T    cert-manager.io/cluster-issuer: letsencrypt-prod
+$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   rules:
-    - host: trustable.$DOMAIN
+    - host: $TRUSTABLE_HOST
       http:
         paths:
           - path: /
@@ -18,20 +20,23 @@ spec:
                 name: trustable-svc
                 port:
                   number: 8910
-  #tls:
-  #  - hosts:
-  #      - trustable.$DOMAIN
+$T  tls:
+$T    - hosts:
+$T        - $TRUSTABLE_HOST
+$T      secretName: trustable-tls
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: opencode-ing
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$T    cert-manager.io/cluster-issuer: letsencrypt-prod
+$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   rules:
-    - host: opencode.$DOMAIN
+    - host: $OPENCODE_HOST
       http:
         paths:
           - path: /
@@ -41,20 +46,23 @@ spec:
                 name: trustable-svc
                 port:
                   number: 4096
-  #tls:
-  #  - hosts:
-  #      - opencode.$DOMAIN
+$T  tls:
+$T    - hosts:
+$T        - $OPENCODE_HOST
+$T      secretName: opencode-tls
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: vite-ing
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+$T    cert-manager.io/cluster-issuer: letsencrypt-prod
+$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
   rules:
-    - host: vite.$DOMAIN
+    - host: $VITE_HOST
       http:
         paths:
           - path: /
@@ -64,6 +72,7 @@ spec:
                 name: trustable-svc
                 port:
                   number: 5173
-  #tls:
-  #  - hosts:
-  #      - vite.$DOMAIN
+$T  tls:
+$T    - hosts:
+$T        - $VITE_HOST
+$T      secretName: vite-tls

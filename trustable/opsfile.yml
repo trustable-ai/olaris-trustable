@@ -14,7 +14,7 @@ vars:
   SSHKEY:
     sh: echo {{.SSHDIR}}/id_trustable
   INGRESS:
-    sh: ops util ingress
+    sh: sh ../ops-core.sh util ingress
 
 env:
   KUBECONFIG:
@@ -30,7 +30,7 @@ tasks:
     desc: preload images
     silent: true
     cmds:
-    - ops util freeze kind-preload-one  "$TRUSTABLE_IMAGES_TRUSTABLE"
+    - sh ../ops-core.sh util freeze kind-preload-one  "$TRUSTABLE_IMAGES_TRUSTABLE"
 
   ssh-key:
     silent: true
@@ -86,11 +86,53 @@ tasks:
   ingress:
     silent: true
     desc: deploy the ingress
+    vars:
+      T:
+        sh: |
+          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          then echo ""
+          else echo "#"
+          fi
+      H:
+        sh: |
+          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          then echo "#"
+          else echo ""
+          fi
     env:
-      DOMAIN:
-        sh: ops util kubeget cm/config .metadata.annotations.apihost | replace -s 'https?://' -r '' --regex --stdin
+      APIHOST:
+        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost
+      API_PROTO:
+        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^(https?)://.*#\1#'
+      API_DOMAIN:
+        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+      TRUSTABLE_DOMAIN:
+        sh: |
+          if test -n "$TRUSTABLE_DOMAIN"
+          then echo "$TRUSTABLE_DOMAIN"
+          else sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+          fi
+      TRUSTABLE_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          echo "${TRUSTABLE_HOST:-trustable.$DOMAIN}"
+      OPENCODE_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          echo "${OPENCODE_HOST:-opencode.$DOMAIN}"
+      VITE_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          echo "${VITE_HOST:-vite.$DOMAIN}"
+      TRAEFIK_ENTRYPOINTS:
+        sh: |
+          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          then echo "websecure,web"
+          else echo "web"
+          fi
     cmds:
       - |
+        export T="{{.T}}" H="{{.H}}"
         envsubst -i {{.INGRESS}}.yaml -o _ingress.yaml
         kubectl -n nuvolaris apply -n nuvolaris -f _ingress.yaml
 
@@ -98,6 +140,8 @@ tasks:
     silent: true
     desc: deploy the sts in kubernetes
     env:
+      APIHOST:
+        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost
       IMAGE:
         sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
 
@@ -119,13 +163,13 @@ tasks:
     silent: true
     desc: setup trustable
     cmds:
-      - ops util kubeget cm/config .metadata.annotations.apihost | rg miniops.me || die "{{.ENTRY}} requires miniops.me"
+      - sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https?://' || die "{{.ENTRY}} requires a Nuvolaris apihost"
       - task: preload
       - task: ssh-key
       - task: kube-config
       - task: ingress
       - task: sts
-      - ops setup kubernetes wait OBJECT=po/trustable-0 COND=true
+      - sh ../ops-core.sh setup kubernetes wait OBJECT=po/trustable-0 COND=true
       - >
         retry -t 100 -m 600 ssh {{.ENTRY}} exit 2>&1
         | awk '{s=""; for(i=1;i<=NR;i++) s=s"#"; printf "\rwaiting for trustable ssh: [%s]", s; fflush()}'

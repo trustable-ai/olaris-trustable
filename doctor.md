@@ -17,11 +17,18 @@ and provide detailed informations on the errors
 - check there is an a nvuolaris-control-plane image running
 
 # Ports
-- check miniops.me, trustable.miniops.me, opencode.miniops.me and vite.miniops.me returns 127.0.0.1
+- read the Nuvolaris apihost from `cm/config .metadata.annotations.apihost`
+- derive the Trustable hosts from that apihost:
+  `trustable.<domain>`, `opencode.<domain>`, and `vite.<domain>`
+- allow `TRUSTABLE_DOMAIN`, `TRUSTABLE_HOST`, `OPENCODE_HOST`, `VITE_HOST`, and
+  `TRUSTABLE_EXPECTED_IP` to override the derived diagnostics
+- check the derived hosts resolve to the same target as the apihost, so
+  `192.168.1.124.nip.io` expects `192.168.1.124` while `miniops.me` can keep
+  resolving to `127.0.0.1`
   - Unix: `dig +short <host>`
   - Windows: PowerShell `Resolve-DnsName`
 - check http://localhost:11434 returns Ollama is running
-- check http://miniops.me/api/info returns a json and .description is OpenWhisk
+- check `<cluster-apihost>/api/info` returns a json and `.description` is OpenWhisk
 - check connecting to localhost 2222 what returns starts with SSH
 
 # Kubernetes using kubectl
@@ -137,4 +144,3 @@ Join our support community at https://n7s.co/wa-trustable
 ```
 
 Then fetch `https://qrenco.de/n7s.co/wa-trustable` and print the response body to the terminal as-is (it renders a QR code in ASCII art).
-

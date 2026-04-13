@@ -1,7 +1,7 @@
 export {};
 /*
   Implement signin.ts with bun without dependencies
-  Accept an args as trustable <url>, defaults to http://trustable.miniops.me
+  Accept an args as trustable <url>, then TRUSTABLE_URL, then http://trustable.miniops.me
   Connect to <url>/api/version and check it returns something like `{"build":"trustabledev_0.3.2-alpha_26.090.1013","expire":"2026/06/30","version":"Trustable v0.3.2-alpha"}`
   Retry up to 10 seconds until is available (1 second interval) otherwise give up with an error
   Execute `docker exec ollama ollama signin` and print the output.
@@ -42,7 +42,7 @@ async function openUrl(url: string) {
   }
 }
 
-const trustableUrl = process.argv[2] || "http://trustable.miniops.me";
+const trustableUrl = process.argv[2] || Bun.env.TRUSTABLE_URL || "http://trustable.miniops.me";
 
 // Check version endpoint with retry (up to 10 seconds, 1s interval)
 let versionData: { build: string; expire: string; version: string } | null = null;

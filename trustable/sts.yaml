@@ -47,6 +47,8 @@ spec:
         env:
         - name: DEBIAN_FRONTEND
           value: noninteractive
+        - name: OPS_APIHOST
+          value: "$APIHOST"
         - name: ID_ED25519
           valueFrom:
             secretKeyRef:

@@ -7,6 +7,20 @@ env:
       else echo ~/.kube/config
       fi
   KEY: "trustable"
+  APIHOST:
+    sh: |
+      APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || echo http://miniops.me)"
+      echo "${APIHOST%/}"
+  TRUSTABLE_URL:
+    sh: |
+      APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || echo http://miniops.me)"
+      APIHOST="${APIHOST%/}"
+      PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
+      if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
+      DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+      DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
+      HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
+      echo "$PROTO://$HOST"
 
 tasks:
   setup:
@@ -17,9 +31,9 @@ tasks:
       - defer: ops trustable notify
       - defer: ops trustable doctor
       - |
-        if  curl -sL http://miniops.me/api/info 2>/dev/null | jq -r .description 2>/dev/null | rg "OpenWhisk"
-        then echo MiniOps running
-        else ops setup mini
+        if  curl -sL "{{.APIHOST}}/api/info" 2>/dev/null | jq -r .description 2>/dev/null | rg "OpenWhisk"
+        then echo Nuvolaris running at {{.APIHOST}}
+        else sh ops-core.sh setup mini "{{.APIHOST}}"
         fi
       - |
         if curl -sL http://localhost:11434 | rg Ollama
@@ -27,7 +41,7 @@ tasks:
         else ops trustable ollama deploy
         fi
       - |
-        if curl -sL trustable.miniops.me | rg '<title>Trustable</title>'
+        if curl -sL "{{.TRUSTABLE_URL}}" | rg '<title>Trustable</title>'
         then echo Trustable running
         else ops trustable trustable deploy
         fi
@@ -67,7 +81,11 @@ tasks:
     desc: signin signin
     silent: true
     cmds:
-      - bun signin.ts {{.CLI_ARGS}}
+      - |
+        if test -n "{{.CLI_ARGS}}"
+        then bun signin.ts {{.CLI_ARGS}}
+        else bun signin.ts "{{.TRUSTABLE_URL}}"
+        fi
 
   signout:
     desc: signin signin
@@ -128,13 +146,13 @@ tasks:
     ignore_error: true
     cmds:
       - ops trustable ollama undeploy
-      - ops setup docker delete
+      - sh ops-core.sh setup docker delete
       - task: remove-all
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
     cmds:
-      - ops setup docker clean-all
+      - sh ops-core.sh setup docker clean-all
   logs:
     desc: trustable logs
     silent: true
@@ -153,5 +171,5 @@ tasks:
     cmds:
       - docker restart ollama
       - docker restart nuvolaris-control-plane
-      - ops setup kubernetes post-deploy
+      - sh ops-core.sh setup kubernetes post-deploy
       - task: doctor
