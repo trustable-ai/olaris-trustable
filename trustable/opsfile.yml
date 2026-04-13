@@ -144,6 +144,10 @@ tasks:
         sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost
       IMAGE:
         sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
+      USERID:
+        sh: echo {{.UID}}
+      GROUPID:
+        sh: echo {{.GID}}
 
     cmds:
       - |
