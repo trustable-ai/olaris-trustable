@@ -20,6 +20,17 @@ export {};
 const platform = process.platform;
 
 async function openUrl(url: string) {
+  if (platform === "linux" && !Bun.env.DISPLAY && !Bun.env.WAYLAND_DISPLAY) {
+    const user = Bun.env.USER || "<user>";
+    console.log(
+      `No graphical browser detected on this server.\n` +
+        `Open this URL from your browser:\n${url}\n\n` +
+        `If you need local port forwarding, reconnect with:\n` +
+        `sudo ssh -L 80:127.0.0.1:80 ${user}@<server>`
+    );
+    return;
+  }
+
   let cmd: string[];
   if (platform === "darwin") {
     cmd = ["open", url];
@@ -83,9 +94,12 @@ const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
 if (match) {
   const queryString = match[1];
   const url = `${trustableUrl}?${queryString}`;
+  console.log(`Trustable sign-in URL: ${url}`);
+  console.log(`Direct Ollama Cloud URL: https://ollama.com/connect?${queryString}`);
   console.log(`Opening ${url}`);
   await openUrl(url);
 } else {
+  console.log(`Trustable URL: ${trustableUrl}`);
   console.log(`Opening ${trustableUrl}`);
   await openUrl(trustableUrl);
 }
