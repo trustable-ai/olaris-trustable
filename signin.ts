@@ -1,7 +1,7 @@
 export {};
 /*
   Implement signin.ts with bun without dependencies
-  Accept an args as trustable <url>, then TRUSTABLE_URL, then http://trustable.miniops.me
+  Accept an args as trustable <url>, then TRUSTABLE_URL, then derive it from OPS_APIHOST/APIHOST
   Connect to <url>/api/version and check it returns something like `{"build":"trustabledev_0.3.2-alpha_26.090.1013","expire":"2026/06/30","version":"Trustable v0.3.2-alpha"}`
   Retry up to 10 seconds until is available (1 second interval) otherwise give up with an error
   Execute `docker exec ollama ollama signin` and print the output.
@@ -18,6 +18,23 @@ export {};
  */
 
 const platform = process.platform;
+
+function defaultTrustableUrl(): string {
+  const rawApiHost = (Bun.env.OPS_APIHOST || Bun.env.APIHOST || Bun.env.TRUSTABLE_DEFAULT_APIHOST || "http://localhost").trim();
+  const apiHost = /^https?:\/\//.test(rawApiHost) ? rawApiHost : `http://${rawApiHost}`;
+  try {
+    const parsed = new URL(apiHost);
+    const baseHost = parsed.hostname;
+    if (baseHost === "localhost" || baseHost === "127.0.0.1") {
+      return parsed.origin;
+    }
+    const domain = (Bun.env.TRUSTABLE_DOMAIN || baseHost).trim();
+    const host = (Bun.env.TRUSTABLE_HOST || `trustable.${domain}`).trim();
+    return `${parsed.protocol}//${host}`;
+  } catch {
+    return "http://localhost";
+  }
+}
 
 async function openUrl(url: string) {
   if (platform === "linux" && !Bun.env.DISPLAY && !Bun.env.WAYLAND_DISPLAY) {
@@ -53,7 +70,7 @@ async function openUrl(url: string) {
   }
 }
 
-const trustableUrl = process.argv[2] || Bun.env.TRUSTABLE_URL || "http://trustable.miniops.me";
+const trustableUrl = process.argv[2] || Bun.env.TRUSTABLE_URL || defaultTrustableUrl();
 
 // Check version endpoint with retry (up to 10 seconds, 1s interval)
 let versionData: { build: string; expire: string; version: string } | null = null;

@@ -22,9 +22,8 @@ and provide detailed informations on the errors
   `trustable.<domain>`, `opencode.<domain>`, and `vite.<domain>`
 - allow `TRUSTABLE_DOMAIN`, `TRUSTABLE_HOST`, `OPENCODE_HOST`, `VITE_HOST`, and
   `TRUSTABLE_EXPECTED_IP` to override the derived diagnostics
-- check the derived hosts resolve to the same target as the apihost, so
-  `192.168.1.124.nip.io` expects `192.168.1.124` while `miniops.me` can keep
-  resolving to `127.0.0.1`
+- check the derived hosts resolve to the same target as the apihost, or to the
+  value supplied by `TRUSTABLE_EXPECTED_IP` when an explicit target is required
   - Unix: `dig +short <host>`
   - Windows: PowerShell `Resolve-DnsName`
 - check http://localhost:11434 returns Ollama is running
