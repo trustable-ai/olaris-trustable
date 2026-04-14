@@ -20,7 +20,7 @@ export {};
 const platform = process.platform;
 
 function defaultTrustableUrl(): string {
-  const rawApiHost = (Bun.env.OPS_APIHOST || Bun.env.APIHOST || Bun.env.TRUSTABLE_DEFAULT_APIHOST || "http://localhost").trim();
+  const rawApiHost = (Bun.env.OPS_APIHOST || Bun.env.APIHOST || Bun.env.TRUSTABLE_DEFAULT_APIHOST || "http://miniops.me").trim();
   const apiHost = /^https?:\/\//.test(rawApiHost) ? rawApiHost : `http://${rawApiHost}`;
   try {
     const parsed = new URL(apiHost);
@@ -32,7 +32,7 @@ function defaultTrustableUrl(): string {
     const host = (Bun.env.TRUSTABLE_HOST || `trustable.${domain}`).trim();
     return `${parsed.protocol}//${host}`;
   } catch {
-    return "http://localhost";
+    return "http://trustable.miniops.me";
   }
 }
 

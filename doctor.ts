@@ -103,7 +103,7 @@ async function prompt(question: string): Promise<string> {
 
 function normalizeApiHost(value: string): string {
   let apiHost = value.trim();
-  if (!apiHost) return "http://localhost";
+  if (!apiHost) return "http://miniops.me";
   if (!/^https?:\/\//.test(apiHost)) apiHost = `http://${apiHost}`;
   return apiHost.replace(/\/+$/, "");
 }
@@ -120,7 +120,7 @@ async function clusterEndpoint(): Promise<ClusterEndpoint> {
   try {
     parsed = new URL(apiHost);
   } catch {
-    apiHost = "http://localhost";
+    apiHost = "http://miniops.me";
     parsed = new URL(apiHost);
   }
 

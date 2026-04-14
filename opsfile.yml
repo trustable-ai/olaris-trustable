@@ -10,12 +10,12 @@ env:
   APIHOST:
     sh: |
       CLUSTER_APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || true)"
-      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://localhost}}}"
+      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
       echo "${APIHOST%/}"
   TRUSTABLE_URL:
     sh: |
       CLUSTER_APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || true)"
-      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://localhost}}}"
+      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
       APIHOST="${APIHOST%/}"
       PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
       if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
