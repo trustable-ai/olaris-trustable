@@ -54,9 +54,6 @@ spec:
         - containerPort: 5173
           name: vite
           protocol: TCP
-        securityContext:
-          runAsUser: $USERID
-          runAsGroup: $GROUPID
         volumeMounts:
         - name: workspace
           mountPath: /home/node/workspace
@@ -65,6 +62,10 @@ spec:
           value: noninteractive
         - name: OPS_APIHOST
           value: "$APIHOST"
+        - name: USERID
+          value: "$USERID"
+        - name: GROUPID
+          value: "$GROUPID"
         - name: ID_ED25519
           valueFrom:
             secretKeyRef:

@@ -80,7 +80,7 @@ tasks:
       > _kubeconfig
     - |
       kubectl -n nuvolaris create secret generic kube-secret \
-        --from-literal=kubeconfig="$(base64 _kubeconfig | tr -d '\n')" \
+        --from-literal=kubeconfig="$(/usr/bin/base64 _kubeconfig | tr -d '\n')" \
         --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
 
   ollama-connect:
@@ -208,7 +208,7 @@ tasks:
           nginx) export INGRESS_SVC=http://ingress-nginx-controller.ingress-nginx.svc.cluster.local ;;
           *) die "unknown service type" ;;
         esac
-        envsubst -i nginx.conf -o _nginx.conf
+        envsubst '$INGRESS_SVC' < nginx.conf > _nginx.conf
       - kubectl -n nuvolaris create configmap nginx-proxy-config --from-file=nginx.conf=_nginx.conf --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
       - |
         envsubst < sts.yaml > _sts.yaml
