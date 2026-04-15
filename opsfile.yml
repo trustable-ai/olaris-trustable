@@ -1,28 +1,9 @@
 version: 3
+vars:
+  KEY: "trustable"
 env:
   KUBECONFIG:
-    sh: |-
-      if test -e "$OPS_TMP/kubeconfig"
-      then echo "$OPS_TMP/kubeconfig"
-      else echo ~/.kube/config
-      fi
-  KEY: "trustable"
-  APIHOST:
-    sh: |
-      CLUSTER_APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || true)"
-      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-      echo "${APIHOST%/}"
-  TRUSTABLE_URL:
-    sh: |
-      CLUSTER_APIHOST="$(sh ops-core.sh util kubeget cm/config .metadata.annotations.apihost 2>/dev/null || true)"
-      APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-      APIHOST="${APIHOST%/}"
-      PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
-      if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
-      DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
-      DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
-      HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
-      echo "$PROTO://$HOST"
+    sh: test -e "$OPS_TMP/kubeconfig" && echo "$OPS_TMP/kubeconfig" || echo ~/.kube/config
 
 tasks:
   setup:
@@ -33,9 +14,12 @@ tasks:
       - defer: ops trustable notify
       - defer: ops trustable doctor
       - |
-        if  curl -sL "{{.APIHOST}}/api/info" 2>/dev/null | jq -r .description 2>/dev/null | rg "OpenWhisk"
-        then echo Nuvolaris running at {{.APIHOST}}
-        else sh ops-core.sh setup mini "{{.APIHOST}}"
+        CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+        APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+        APIHOST="${APIHOST%/}"
+        if curl -fsSL "$APIHOST/api/info" | jq -r .description | rg "OpenWhisk"
+        then echo Nuvolaris running at "$APIHOST"
+        else sh ops-core.sh setup mini "$APIHOST"
         fi
       - |
         if curl -sL http://localhost:11434 | rg Ollama
@@ -43,7 +27,16 @@ tasks:
         else ops trustable ollama deploy
         fi
       - |
-        if curl -sL "{{.TRUSTABLE_URL}}" | rg '<title>Trustable</title>'
+        CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+        APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+        APIHOST="${APIHOST%/}"
+        PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
+        if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
+        DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+        DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
+        HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
+        TRUSTABLE_URL="$PROTO://$HOST"
+        if curl -fsSL "$TRUSTABLE_URL" | rg "Trustable"
         then echo Trustable running
         else ops trustable trustable deploy
         fi
@@ -77,7 +70,7 @@ tasks:
           else MSG="${MSG}+Success"
           fi
         fi
-        curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" >/dev/null
+        curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" > /dev/null
 
   signin:
     desc: signin signin
@@ -86,7 +79,16 @@ tasks:
       - |
         if test -n "{{.CLI_ARGS}}"
         then bun signin.ts {{.CLI_ARGS}}
-        else bun signin.ts "{{.TRUSTABLE_URL}}"
+        else
+          CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          APIHOST="${APIHOST%/}"
+          PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
+          if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
+          DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+          DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
+          HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
+          bun signin.ts "$PROTO://$HOST"
         fi
 
   signout:

@@ -70,6 +70,23 @@ async function openUrl(url: string) {
   }
 }
 
+async function runOllama(args: string[]): Promise<string> {
+  const proc = Bun.spawn(["docker", "exec", "ollama", "ollama", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
+  const output = stdout + stderr;
+  await proc.exited;
+  return output;
+}
+
+function extractConnectQuery(output: string): string | null {
+  const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
+  return match ? match[1] : null;
+}
+
 const trustableUrl = process.argv[2] || Bun.env.TRUSTABLE_URL || defaultTrustableUrl();
 
 // Check version endpoint with retry (up to 10 seconds, 1s interval)
@@ -94,31 +111,33 @@ if (!versionData) {
 }
 
 // Execute ollama signin
-const proc = Bun.spawn(["docker", "exec", "ollama", "ollama", "signin"], {
-  stdout: "pipe",
-  stderr: "pipe",
-});
-
-const stdout = await new Response(proc.stdout).text();
-const stderr = await new Response(proc.stderr).text();
-const output = stdout + stderr;
+let output = await runOllama(["signin"]);
 
 console.log(output.trim());
 
 // Extract the query string from the ollama connect URL
-const match = output.match(/https:\/\/ollama\.com\/connect\?([^\s]+)/);
+let queryString = extractConnectQuery(output);
 
-if (match) {
-  const queryString = match[1];
+if (!queryString && /already signed in/i.test(output)) {
+  console.log("Ollama CLI is already signed in and did not return a browser connect URL.");
+  console.log("Refreshing the Ollama sign-in session to generate a new Trustable browser link...");
+  const signoutOutput = await runOllama(["signout"]);
+  if (signoutOutput.trim()) console.log(signoutOutput.trim());
+  output = await runOllama(["signin"]);
+  console.log(output.trim());
+  queryString = extractConnectQuery(output);
+}
+
+if (queryString) {
   const url = `${trustableUrl}?${queryString}`;
   console.log(`Trustable sign-in URL: ${url}`);
   console.log(`Direct Ollama Cloud URL: https://ollama.com/connect?${queryString}`);
   console.log(`Opening ${url}`);
   await openUrl(url);
 } else {
-  console.log(`Trustable URL: ${trustableUrl}`);
-  console.log(`Opening ${trustableUrl}`);
-  await openUrl(trustableUrl);
+  console.error("Error: Ollama did not return a connect URL, so Trustable browser sign-in cannot continue.");
+  console.error("Please check the output of `docker exec ollama ollama signin`.");
+  process.exit(1);
 }
 
 // Print version info

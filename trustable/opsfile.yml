@@ -46,29 +46,28 @@ tasks:
       fi
     - |
       touch "{{.SSHDIR}}/config"
-      if ! rg "Host {{.ENTRY}}" ~/.ssh/config >/dev/null
+      if ! rg "Host {{.ENTRY}}" ~/.ssh/config > /dev/null
       then  echo Adding {{.ENTRY}} entry in ssh config
         echo -e "\nHost {{.ENTRY}}\n  Hostname localhost\n  Port 2222\n  User node\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null\n  IdentityFile {{.SSHKEY}}\n" >> ~/.ssh/config
       else
         echo Found {{.ENTRY}} entry in ssh config
       fi
     - |
-      if rg "{{.ENTRY}} key"  "{{.SSHDIR}}/authorized_keys" 2>/dev/null >/dev/null
+      if rg "{{.ENTRY}} key"  "{{.SSHDIR}}/authorized_keys" 2> /dev/null > /dev/null
       then
         echo Access already added
       else
-        cat "{{.SSHKEY}}.pub" >>"{{.SSHDIR}}/authorized_keys"
+        cat "{{.SSHKEY}}.pub" >> "{{.SSHDIR}}/authorized_keys"
         echo Added key for external Access
         {{if ne OS "windows"}}
         chmod 0700 "{{.SSHDIR}}"
         chmod 0600 "{{.SSHDIR}}/authorized_keys"
         {{end}}
       fi
-    - >
-      kubectl -n nuvolaris
-      create secret generic ssh-secret
-      --from-literal=id_ed25519="$(cat {{.SSHKEY}})"
-      || die "ssh-secret already exists"
+    - |
+      kubectl -n nuvolaris create secret generic ssh-secret \
+        --from-literal=id_ed25519="$(cat {{.SSHKEY}})" \
+        --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
 
   kube-config:
     silent: true
@@ -78,10 +77,27 @@ tasks:
       cat "$KUBECONFIG"
       | replace -s 'server: .*$' --stdin --regex
       -r 'server: https://kubernetes.default.svc.cluster.local'
-      >_kubeconfig
-    - >
-      kubectl -n nuvolaris create secret generic kube-secret
-      --from-literal=kubeconfig="$(base64 -e "$(cat _kubeconfig)")"
+      > _kubeconfig
+    - |
+      kubectl -n nuvolaris create secret generic kube-secret \
+        --from-literal=kubeconfig="$(base64 _kubeconfig | tr -d '\n')" \
+        --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
+
+  ollama-connect:
+    silent: true
+    desc: expose the Ollama Cloud connect link metadata to Trustable
+    cmds:
+    - |
+      NAME="$(docker exec ollama hostname 2> /dev/null || true)"
+      PUBLIC_KEY="$(docker exec ollama cat /root/.ollama/id_ed25519.pub 2> /dev/null || true)"
+      if test -z "$NAME" || test -z "$PUBLIC_KEY"
+      then
+        echo "WARNING: cannot read Ollama connect data; Trustable will show the terminal sign-in fallback"
+      fi
+      kubectl -n nuvolaris create secret generic ollama-connect \
+        --from-literal=OLLAMA_CONNECT_NAME="$NAME" \
+        --from-literal=OLLAMA_CONNECT_PUBLIC_KEY="$PUBLIC_KEY" \
+        --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
 
   ingress:
     silent: true
@@ -89,44 +105,77 @@ tasks:
     vars:
       T:
         sh: |
-          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          if printf "%s" "$APIHOST" | rg '^https://' > /dev/null
           then echo ""
           else echo "#"
           fi
       H:
         sh: |
-          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          if printf "%s" "$APIHOST" | rg '^https://' > /dev/null
           then echo "#"
           else echo ""
           fi
     env:
       APIHOST:
-        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost
+        sh: |
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) echo "$APIHOST" ;; *) echo "http://$APIHOST" ;; esac
       API_PROTO:
-        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^(https?)://.*#\1#'
+        sh: |
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+          printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#'
       API_DOMAIN:
-        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+        sh: |
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+          printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
       TRUSTABLE_DOMAIN:
         sh: |
           if test -n "$TRUSTABLE_DOMAIN"
           then echo "$TRUSTABLE_DOMAIN"
-          else sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+          else
+            APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+            APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+            case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+            printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
           fi
       TRUSTABLE_HOST:
         sh: |
-          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+          DEFAULT_DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+          DOMAIN="${TRUSTABLE_DOMAIN:-$DEFAULT_DOMAIN}"
           echo "${TRUSTABLE_HOST:-trustable.$DOMAIN}"
       OPENCODE_HOST:
         sh: |
-          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+          DEFAULT_DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+          DOMAIN="${TRUSTABLE_DOMAIN:-$DEFAULT_DOMAIN}"
           echo "${OPENCODE_HOST:-opencode.$DOMAIN}"
       VITE_HOST:
         sh: |
-          DOMAIN="${TRUSTABLE_DOMAIN:-$(sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')}"
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) ;; *) APIHOST="http://$APIHOST" ;; esac
+          DEFAULT_DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+          DOMAIN="${TRUSTABLE_DOMAIN:-$DEFAULT_DOMAIN}"
           echo "${VITE_HOST:-vite.$DOMAIN}"
       TRAEFIK_ENTRYPOINTS:
         sh: |
-          if sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https://' >/dev/null
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          if printf "%s" "$APIHOST" | rg '^https://' > /dev/null
           then echo "websecure,web"
           else echo "web"
           fi
@@ -141,7 +190,10 @@ tasks:
     desc: deploy the sts in kubernetes
     env:
       APIHOST:
-        sh: sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost
+        sh: |
+          APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+          APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+          case "$APIHOST" in http://*|https://*) echo "$APIHOST" ;; *) echo "http://$APIHOST" ;; esac
       IMAGE:
         sh: echo "$TRUSTABLE_IMAGES_{{.KEY | upper }}"
       USERID:
@@ -157,9 +209,9 @@ tasks:
           *) die "unknown service type" ;;
         esac
         envsubst -i nginx.conf -o _nginx.conf
-      - kubectl -n nuvolaris create configmap nginx-proxy-config --from-file=nginx.conf=_nginx.conf
+      - kubectl -n nuvolaris create configmap nginx-proxy-config --from-file=nginx.conf=_nginx.conf --dry-run=client -o yaml | kubectl -n nuvolaris apply -f -
       - |
-        envsubst <sts.yaml >_sts.yaml
+        envsubst < sts.yaml > _sts.yaml
         kubectl -n nuvolaris apply -f _sts.yaml
         echo "Deployed $IMAGE"
 
@@ -167,15 +219,19 @@ tasks:
     silent: true
     desc: setup trustable
     cmds:
-      - sh ../ops-core.sh util kubeget cm/config .metadata.annotations.apihost | rg '^https?://' || die "{{.ENTRY}} requires a Nuvolaris apihost"
+      - |
+        APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
+        APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
+        case "$APIHOST" in http://*|https://*) echo "$APIHOST" ;; *) echo "http://$APIHOST" ;; esac
       - task: preload
       - task: ssh-key
       - task: kube-config
+      - task: ollama-connect
       - task: ingress
       - task: sts
       - sh ../ops-core.sh setup kubernetes wait OBJECT=po/trustable-0 COND=true
       - >
-        retry -t 100 -m 600 ssh {{.ENTRY}} exit 2>&1
+        retry -t 100 -m 600 ssh {{.ENTRY}} exit 2> /dev/null
         | awk '{s=""; for(i=1;i<=NR;i++) s=s"#"; printf "\rwaiting for trustable ssh: [%s]", s; fflush()}'
       - echo -e "\nyou can now connect to the devcontainer with 'ssh {{.ENTRY}}'"
 
@@ -188,7 +244,7 @@ tasks:
         kubectl -n nuvolaris delete
         sts/trustable svc/trustable-svc cm/nginx-proxy-config
         ing/trustable-ing ing/opencode-ing ing/vite-ing
-        secret/ssh-secret secret/kube-secret svc/trustable-ssh
+        secret/ssh-secret secret/kube-secret secret/ollama-connect svc/trustable-ssh
       - echo Please remove the Host {{.ENTRY}} entry from your ~/.ssh/config file if present
 
   redeploy:
@@ -208,15 +264,15 @@ tasks:
     - echo Connecting to {{.U}}@{{.H}}
     - |
       if ! test -e "{{.SSHKEY}}.pub"
-      then scp "{{.U}}@{{.H}}:{{.SSHLOCAL}}" "{{.SSHKEY}}" && ssh-keygen -f "{{.SSHKEY}}" -y >"{{.SSHKEY}}.pub"
+      then scp "{{.U}}@{{.H}}:{{.SSHLOCAL}}" "{{.SSHKEY}}" && ssh-keygen -f "{{.SSHKEY}}" -y > "{{.SSHKEY}}.pub"
       fi
       if test -e "{{.SSHKEY}}.pub"
       then echo Found "{{.SSHKEY}}"
       else echo "Remote user has not a {{.ENTRY}} configured" ; exit 1
       fi
     - |
-      if ! rg '^Host {{.ENTRY}}$' "{{.SSHDIR}}/config" >/dev/null
-      then cat <<EOF >>"{{.SSHDIR}}/config"
+      if ! rg '^Host {{.ENTRY}}$' "{{.SSHDIR}}/config" > /dev/null
+      then cat <<EOF >> "{{.SSHDIR}}/config"
 
       Host {{.ENTRY}}
         ProxyJump remote-{{.ENTRY}}
@@ -231,8 +287,8 @@ tasks:
         echo Found ssh config {{.ENTRY}}
       fi
     - |
-      if ! rg '^Host remote-{{.ENTRY}}$' "{{.SSHDIR}}/config" >/dev/null
-      then cat <<EOF >>"{{.SSHDIR}}/config"
+      if ! rg '^Host remote-{{.ENTRY}}$' "{{.SSHDIR}}/config" > /dev/null
+      then cat <<EOF >> "{{.SSHDIR}}/config"
 
       Host remote-{{.ENTRY}}
         Hostname {{.H}}
