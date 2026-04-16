@@ -119,6 +119,18 @@ tasks:
           then echo "#"
           else echo ""
           fi
+      B:
+        sh: |
+          if test -n "$TRUSTABLE_BROWSER_DOMAIN" || test -n "$TRUSTABLE_NIP_DOMAIN" || test -n "$TRUSTABLE_EXPECTED_IP"
+          then echo ""
+          else
+            DOMAIN="$(kubectl -n nuvolaris get ingress -o jsonpath='{range .items[*].spec.rules[*]}{.host}{"\n"}{end}' 2> /dev/null \
+              | awk '/\.nip\.io$/ { sub(/^[^.]+\./, ""); print; exit }')"
+            if test -n "$DOMAIN"
+            then echo ""
+            else echo "#"
+            fi
+          fi
     env:
       APIHOST:
         sh: |
@@ -171,6 +183,56 @@ tasks:
           DEFAULT_DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
           DOMAIN="${TRUSTABLE_DOMAIN:-$DEFAULT_DOMAIN}"
           echo "${VITE_HOST:-vite.$DOMAIN}"
+      TRUSTABLE_BROWSER_DOMAIN:
+        sh: |
+          if test -n "$TRUSTABLE_BROWSER_DOMAIN"
+          then echo "$TRUSTABLE_BROWSER_DOMAIN" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+          elif test -n "$TRUSTABLE_NIP_DOMAIN"
+          then echo "$TRUSTABLE_NIP_DOMAIN" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##'
+          elif test -n "$TRUSTABLE_EXPECTED_IP"
+          then
+            VALUE="$(echo "$TRUSTABLE_EXPECTED_IP" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+            case "$VALUE" in *.nip.io) echo "$VALUE" ;; *) echo "$VALUE.nip.io" ;; esac
+          else
+            kubectl -n nuvolaris get ingress -o jsonpath='{range .items[*].spec.rules[*]}{.host}{"\n"}{end}' 2> /dev/null \
+              | awk '/\.nip\.io$/ { sub(/^[^.]+\./, ""); print; exit }'
+          fi
+      TRUSTABLE_BROWSER_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_BROWSER_DOMAIN:-${TRUSTABLE_NIP_DOMAIN:-}}"
+          if test -z "$DOMAIN" && test -n "$TRUSTABLE_EXPECTED_IP"
+          then
+            VALUE="$(echo "$TRUSTABLE_EXPECTED_IP" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+            case "$VALUE" in *.nip.io) DOMAIN="$VALUE" ;; *) DOMAIN="$VALUE.nip.io" ;; esac
+          fi
+          if test -z "$DOMAIN"
+          then DOMAIN="$(kubectl -n nuvolaris get ingress -o jsonpath='{range .items[*].spec.rules[*]}{.host}{"\n"}{end}' 2> /dev/null | awk '/\.nip\.io$/ { sub(/^[^.]+\./, ""); print; exit }')"
+          fi
+          test -n "$DOMAIN" && echo "trustable.$DOMAIN" || true
+      OPENCODE_BROWSER_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_BROWSER_DOMAIN:-${TRUSTABLE_NIP_DOMAIN:-}}"
+          if test -z "$DOMAIN" && test -n "$TRUSTABLE_EXPECTED_IP"
+          then
+            VALUE="$(echo "$TRUSTABLE_EXPECTED_IP" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+            case "$VALUE" in *.nip.io) DOMAIN="$VALUE" ;; *) DOMAIN="$VALUE.nip.io" ;; esac
+          fi
+          if test -z "$DOMAIN"
+          then DOMAIN="$(kubectl -n nuvolaris get ingress -o jsonpath='{range .items[*].spec.rules[*]}{.host}{"\n"}{end}' 2> /dev/null | awk '/\.nip\.io$/ { sub(/^[^.]+\./, ""); print; exit }')"
+          fi
+          test -n "$DOMAIN" && echo "opencode.$DOMAIN" || true
+      VITE_BROWSER_HOST:
+        sh: |
+          DOMAIN="${TRUSTABLE_BROWSER_DOMAIN:-${TRUSTABLE_NIP_DOMAIN:-}}"
+          if test -z "$DOMAIN" && test -n "$TRUSTABLE_EXPECTED_IP"
+          then
+            VALUE="$(echo "$TRUSTABLE_EXPECTED_IP" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
+            case "$VALUE" in *.nip.io) DOMAIN="$VALUE" ;; *) DOMAIN="$VALUE.nip.io" ;; esac
+          fi
+          if test -z "$DOMAIN"
+          then DOMAIN="$(kubectl -n nuvolaris get ingress -o jsonpath='{range .items[*].spec.rules[*]}{.host}{"\n"}{end}' 2> /dev/null | awk '/\.nip\.io$/ { sub(/^[^.]+\./, ""); print; exit }')"
+          fi
+          test -n "$DOMAIN" && echo "vite.$DOMAIN" || true
       TRAEFIK_ENTRYPOINTS:
         sh: |
           APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
@@ -244,6 +306,7 @@ tasks:
         kubectl -n nuvolaris delete
         sts/trustable svc/trustable-svc cm/nginx-proxy-config
         ing/trustable-ing ing/opencode-ing ing/vite-ing
+        ing/trustable-nip-ing ing/opencode-nip-ing ing/vite-nip-ing
         secret/ssh-secret secret/kube-secret secret/ollama-connect svc/trustable-ssh
       - echo Please remove the Host {{.ENTRY}} entry from your ~/.ssh/config file if present
 
