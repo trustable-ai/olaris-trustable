@@ -12,11 +12,8 @@ tasks:
   prereq:
     silent: true
     cmds:
-    - docker -v > /dev/null 2> /dev/null || die "docker is required."
-    - |
-      APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
-      APIHOST="${APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-      case "$APIHOST" in http://*|https://*) echo "$APIHOST" ;; *) echo "http://$APIHOST" ;; esac
+    - docker -v >/dev/null 2>&1 || die "docker is required."
+    - ops util kubeget cm/config .metadata.annotations.apihost | rg 'http://miniops.me' || die "Nuvolaris miniops required"
     - docker pull "$OLLAMA" || die "cannot pull ollama"
 
   check-gpu:
@@ -24,11 +21,11 @@ tasks:
     cmds:
     - |
       echo "Checking GPU"
-      if docker run  -ti --gpus all --entrypoint=/usr/bin/nvidia-smi  $OLLAMA -L   2> /dev/null | rg ^GPU
+      if docker run  -ti --gpus all --entrypoint=/usr/bin/nvidia-smi  $OLLAMA -L   2>/dev/null | rg ^GPU
       then  echo GPU Found
-            echo "--gpus all -e OLLAMA_USE_CUDA=1" > _docker
+            echo "--gpus all -e OLLAMA_USE_CUDA=1" >_docker
       else  echo GPU not found
-            echo "" > _docker
+            echo "" >_docker
       fi
 
   start:
@@ -36,7 +33,7 @@ tasks:
     desc: run ollama container from current config
     cmds:
     - test -e _docker || die "check-gpu required"
-    - docker rm -f ollama > /dev/null 2> /dev/null || true
+    - docker rm -f ollama >/dev/null 2>&1 || true
     - >
       docker run -d
       --name ollama
@@ -47,9 +44,9 @@ tasks:
       $(cat _docker)
       $OLLAMA
     - |
-      docker network create nuvolaris-ollama > /dev/null 2> /dev/null || true
-      docker network connect nuvolaris-ollama ollama > /dev/null 2> /dev/null || true
-      docker network connect nuvolaris-ollama nuvolaris-control-plane > /dev/null 2> /dev/null || true
+      docker network create nuvolaris-ollama >/dev/null 2>&1 || true
+      docker network connect nuvolaris-ollama ollama >/dev/null 2>&1 || true
+      docker network connect nuvolaris-ollama nuvolaris-control-plane >/dev/null 2>&1 || true
 
   preload:
     silent: true
@@ -77,10 +74,10 @@ tasks:
     - |
       if docker ps -a | rg ollama
       then
-          docker network disconnect nuvolaris-ollama ollama > /dev/null 2> /dev/null || true
+          docker network disconnect nuvolaris-ollama ollama >/dev/null 2>&1 || true
           docker rm -f ollama
-          docker network disconnect nuvolaris-ollama nuvolaris-control-plane > /dev/null 2> /dev/null || true
-          docker network rm nuvolaris-ollama > /dev/null 2> /dev/null || true
+          docker network disconnect nuvolaris-ollama nuvolaris-control-plane >/dev/null 2>&1 || true
+          docker network rm nuvolaris-ollama >/dev/null 2>&1 || true
           echo Ollama stopped
       else
           echo Ollama is not running

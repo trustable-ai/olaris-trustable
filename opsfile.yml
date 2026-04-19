@@ -1,9 +1,12 @@
 version: 3
-vars:
-  KEY: "trustable"
 env:
   KUBECONFIG:
-    sh: test -e "$OPS_TMP/kubeconfig" && echo "$OPS_TMP/kubeconfig" || echo ~/.kube/config
+    sh: |-
+      if test -e "$OPS_TMP/kubeconfig"
+      then echo "$OPS_TMP/kubeconfig"
+      else echo ~/.kube/config
+      fi
+  KEY: "trustable"
 
 tasks:
   setup:
@@ -14,12 +17,9 @@ tasks:
       - defer: ops trustable notify
       - defer: ops trustable doctor
       - |
-        CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
-        APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-        APIHOST="${APIHOST%/}"
-        if curl -fsSL "$APIHOST/api/info" | jq -r .description | rg "OpenWhisk"
-        then echo Nuvolaris running at "$APIHOST"
-        else sh ops-core.sh setup mini "$APIHOST"
+        if  curl -sL http://miniops.me/api/info 2>/dev/null | jq -r .description 2>/dev/null | rg "OpenWhisk"
+        then echo MiniOps running
+        else ops setup mini
         fi
       - |
         if curl -sL http://localhost:11434 | rg Ollama
@@ -27,27 +27,12 @@ tasks:
         else ops trustable ollama deploy
         fi
       - |
-        CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
-        APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-        APIHOST="${APIHOST%/}"
-        PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
-        if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
-        DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
-        DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
-        HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
-        TRUSTABLE_URL="$PROTO://$HOST"
-        if curl -fsSL "$TRUSTABLE_URL" | rg "Trustable"
+        if curl -sL trustable.miniops.me | rg '<title>Trustable</title>'
         then echo Trustable running
         else ops trustable trustable deploy
         fi
       - rm -f _fail
       - task: signin
-
-  deploy:
-    silent: true
-    desc: deploy trustable
-    cmds:
-      - task: setup
 
   ollama:
     desc: managing ollama
@@ -70,26 +55,13 @@ tasks:
           else MSG="${MSG}+Success"
           fi
         fi
-        curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" > /dev/null
+        curl -s "https://landing.nuvolaris.org/api/my/v1/notify?input=$MSG" >/dev/null
 
   signin:
     desc: signin signin
     silent: true
     cmds:
-      - |
-        if test -n "{{.CLI_ARGS}}"
-        then bun signin.ts {{.CLI_ARGS}}
-        else
-          CLUSTER_APIHOST="$(kubectl -n nuvolaris get cm/config -o jsonpath='{.metadata.annotations.apihost}' 2> /dev/null || true)"
-          APIHOST="${CLUSTER_APIHOST:-${OPS_APIHOST:-${APIHOST:-http://miniops.me}}}"
-          APIHOST="${APIHOST%/}"
-          PROTO="$(printf "%s" "$APIHOST" | sed -E 's#^(https?)://.*#\1#')"
-          if test "$PROTO" != "http" -a "$PROTO" != "https"; then PROTO=http; fi
-          DOMAIN="$(printf "%s" "$APIHOST" | sed -E 's#^https?://##; s#/.*$##; s#:.*$##')"
-          DOMAIN="${TRUSTABLE_DOMAIN:-$DOMAIN}"
-          HOST="${TRUSTABLE_HOST:-trustable.$DOMAIN}"
-          bun signin.ts "$PROTO://$HOST"
-        fi
+      - bun signin.ts {{.CLI_ARGS}}
 
   signout:
     desc: signin signin
@@ -97,33 +69,13 @@ tasks:
     cmds:
       - docker exec -i ollama ollama signout
 
-  update-plugin:
+  update:
     desc: updating plugin
     silent: true
     cmds:
-      - |
-        PLUGIN_DIR="${OPS_HOME:-$HOME/.ops}/olaris-trustable"
-        if test -d "$PLUGIN_DIR" && ! test -d "$PLUGIN_DIR/.git"
-        then
-          echo "Replacing embedded olaris-trustable copy with git plugin"
-          cd "${OPS_HOME:-$HOME/.ops}"
-          rm -rf "$PLUGIN_DIR"
-        fi
-        ops -plugin https://github.com/trustable-ai/olaris-trustable
-
-  update-app:
-    desc: update trustable app only
-    silent: true
-    cmds:
-      - ops trustable trustable redeploy KEY="{{.KEY}}"
-
-  update:
-    desc: update plugin and trustable app
-    silent: true
-    cmds:
-      - task: update-plugin
-      - task: update-app
-      - echo "Trustable updated"
+      - ops -update
+      - ops -plugin https://github.com/trustable-ai/olaris-trustable
+      - echo "Trustable updated - use 'ops trustable redeploy' to redeploy trustable"
 
   redeploy:
     desc: redeploy trustable and ollama
@@ -150,13 +102,13 @@ tasks:
     ignore_error: true
     cmds:
       - ops trustable ollama undeploy
-      - sh ops-core.sh setup docker delete
+      - ops setup docker delete
       - task: remove-all
 
   clean:
     prompt: "Are you sure you want to clean all (your code is still in .ops-workspace under the home)"
     cmds:
-      - sh ops-core.sh setup docker clean-all
+      - ops setup docker clean-all
   logs:
     desc: trustable logs
     silent: true
@@ -175,5 +127,5 @@ tasks:
     cmds:
       - docker restart ollama
       - docker restart nuvolaris-control-plane
-      - sh ops-core.sh setup kubernetes post-deploy
+      - ops setup kubernetes post-deploy
       - task: doctor

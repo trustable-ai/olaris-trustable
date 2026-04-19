@@ -4,17 +4,11 @@ kind: Ingress
 metadata:
   name: trustable-ing
   annotations:
-$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-    - host: $TRUSTABLE_HOST
+    - host: trustable.$DOMAIN
       http:
         paths:
           - path: /
@@ -24,27 +18,20 @@ spec:
                 name: trustable-svc
                 port:
                   number: 8910
-$T  tls:
-$T    - hosts:
-$T        - $TRUSTABLE_HOST
-$T      secretName: trustable-tls
+  #tls:
+  #  - hosts:
+  #      - trustable.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: opencode-ing
   annotations:
-$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-    - host: $OPENCODE_HOST
+    - host: opencode.$DOMAIN
       http:
         paths:
           - path: /
@@ -54,27 +41,20 @@ spec:
                 name: trustable-svc
                 port:
                   number: 4096
-$T  tls:
-$T    - hosts:
-$T        - $OPENCODE_HOST
-$T      secretName: opencode-tls
+  #tls:
+  #  - hosts:
+  #      - opencode.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: vite-ing
   annotations:
-$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-    - host: $VITE_HOST
+    - host: vite.$DOMAIN
       http:
         paths:
           - path: /
@@ -84,97 +64,6 @@ spec:
                 name: trustable-svc
                 port:
                   number: 5173
-$T  tls:
-$T    - hosts:
-$T        - $VITE_HOST
-$T      secretName: vite-tls
-$B---
-$BapiVersion: networking.k8s.io/v1
-$Bkind: Ingress
-$Bmetadata:
-$B  name: trustable-nip-ing
-$B  annotations:
-$B$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$B$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$B$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$B$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$B$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$B$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$B$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-$Bspec:
-$B  ingressClassName: nginx
-$B  rules:
-$B    - host: $TRUSTABLE_BROWSER_HOST
-$B      http:
-$B        paths:
-$B          - path: /
-$B            pathType: Prefix
-$B            backend:
-$B              service:
-$B                name: trustable-svc
-$B                port:
-$B                  number: 8910
-$B$T  tls:
-$B$T    - hosts:
-$B$T        - $TRUSTABLE_BROWSER_HOST
-$B$T      secretName: trustable-nip-tls
-$B---
-$BapiVersion: networking.k8s.io/v1
-$Bkind: Ingress
-$Bmetadata:
-$B  name: opencode-nip-ing
-$B  annotations:
-$B$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$B$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$B$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$B$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$B$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$B$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$B$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-$Bspec:
-$B  ingressClassName: nginx
-$B  rules:
-$B    - host: $OPENCODE_BROWSER_HOST
-$B      http:
-$B        paths:
-$B          - path: /
-$B            pathType: Prefix
-$B            backend:
-$B              service:
-$B                name: trustable-svc
-$B                port:
-$B                  number: 4096
-$B$T  tls:
-$B$T    - hosts:
-$B$T        - $OPENCODE_BROWSER_HOST
-$B$T      secretName: opencode-nip-tls
-$B---
-$BapiVersion: networking.k8s.io/v1
-$Bkind: Ingress
-$Bmetadata:
-$B  name: vite-nip-ing
-$B  annotations:
-$B$H    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-$B$H    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-$B$H    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-$B$H    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-$B$H    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-$B$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$B$T    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-$Bspec:
-$B  ingressClassName: nginx
-$B  rules:
-$B    - host: $VITE_BROWSER_HOST
-$B      http:
-$B        paths:
-$B          - path: /
-$B            pathType: Prefix
-$B            backend:
-$B              service:
-$B                name: trustable-svc
-$B                port:
-$B                  number: 5173
-$B$T  tls:
-$B$T    - hosts:
-$B$T        - $VITE_BROWSER_HOST
-$B$T      secretName: vite-nip-tls
+  #tls:
+  #  - hosts:
+  #      - vite.$DOMAIN

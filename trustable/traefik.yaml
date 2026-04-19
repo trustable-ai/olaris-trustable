@@ -3,13 +3,11 @@ kind: Ingress
 metadata:
   name: trustable-ing
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: $TRAEFIK_ENTRYPOINTS
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: $TRUSTABLE_HOST
+    - host: trustable.$DOMAIN
       http:
         paths:
           - path: /
@@ -19,23 +17,20 @@ spec:
                 name: trustable-svc
                 port:
                   number: 8910
-$T  tls:
-$T    - hosts:
-$T        - $TRUSTABLE_HOST
-$T      secretName: trustable-tls
+  #tls:
+  #  - hosts:
+  #      - trustable.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: opencode-ing
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: $TRAEFIK_ENTRYPOINTS
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: $OPENCODE_HOST
+    - host: opencode.$DOMAIN
       http:
         paths:
           - path: /
@@ -45,23 +40,20 @@ spec:
                 name: trustable-svc
                 port:
                   number: 4096
-$T  tls:
-$T    - hosts:
-$T        - $OPENCODE_HOST
-$T      secretName: opencode-tls
+  #tls:
+  #  - hosts:
+  #      - opencode.$DOMAIN
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: vite-ing
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: $TRAEFIK_ENTRYPOINTS
-$T    cert-manager.io/cluster-issuer: letsencrypt-prod
-$T    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: $VITE_HOST
+    - host: vite.$DOMAIN
       http:
         paths:
           - path: /
@@ -71,7 +63,6 @@ spec:
                 name: trustable-svc
                 port:
                   number: 5173
-$T  tls:
-$T    - hosts:
-$T        - $VITE_HOST
-$T      secretName: vite-tls
+  #tls:
+  #  - hosts:
+  #      - vite.$DOMAIN

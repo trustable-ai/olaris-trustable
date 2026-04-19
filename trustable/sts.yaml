@@ -18,25 +18,9 @@ spec:
       - name: workspace
         hostPath:
           path: /workspace
-          type: DirectoryOrCreate
       - name: nginx-config
         configMap:
           name: nginx-proxy-config
-      initContainers:
-      - name: prepare-workspace
-        image: busybox:1.36.0
-        command: ["sh", "-c", "mkdir -p /workspace/workspace && chown -R $USERID:$GROUPID /workspace"]
-        env:
-        - name: USERID
-          value: "$USERID"
-        - name: GROUPID
-          value: "$GROUPID"
-        securityContext:
-          runAsUser: 0
-          runAsGroup: 0
-        volumeMounts:
-        - name: workspace
-          mountPath: /workspace
       containers:
       - name: trustable
         image: $IMAGE
@@ -54,18 +38,15 @@ spec:
         - containerPort: 5173
           name: vite
           protocol: TCP
+        securityContext:
+          runAsUser: $USERID
+          runAsGroup: $USERID
         volumeMounts:
         - name: workspace
           mountPath: /home/node/workspace
         env:
         - name: DEBIAN_FRONTEND
           value: noninteractive
-        - name: OPS_APIHOST
-          value: "$APIHOST"
-        - name: USERID
-          value: "$USERID"
-        - name: GROUPID
-          value: "$GROUPID"
         - name: ID_ED25519
           valueFrom:
             secretKeyRef:
@@ -76,18 +57,6 @@ spec:
             secretKeyRef:
               name: kube-secret
               key: kubeconfig
-        - name: OLLAMA_CONNECT_NAME
-          valueFrom:
-            secretKeyRef:
-              name: ollama-connect
-              key: OLLAMA_CONNECT_NAME
-              optional: true
-        - name: OLLAMA_CONNECT_PUBLIC_KEY
-          valueFrom:
-            secretKeyRef:
-              name: ollama-connect
-              key: OLLAMA_CONNECT_PUBLIC_KEY
-              optional: true
       - name: reverse-proxy
         image: nginx:alpine
         ports:
