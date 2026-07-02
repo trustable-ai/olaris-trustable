@@ -39,7 +39,7 @@ spec:
               service:
                 name: trustable-svc
                 port:
-                  number: 4096
+                  number: 8910
   #tls:
   #  - hosts:
   #      - opencode.$DOMAIN
